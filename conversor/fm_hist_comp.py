@@ -6,8 +6,12 @@ import struct, collections
 import fm_tad as T
 Y = lambda r: struct.unpack_from('<H', r, 4)[0]
 def equipos(r): return list(struct.unpack_from('<9I', r, 8))
-def transferir(ls20, dt20, ls24, dt24, u20, u24, desp, hasta=2018, desde=2020):
-    """u20 / u24: {id de equipo: uid} (fm_uids.mapa)"""
+def transferir(ls20, dt20, ls24, dt24, u20, u24, desp, hasta=2018, desde=2020, e20=None, e24=None):
+    """u20 / u24: {team id: uid} (fm_uids.mapa); e20 / e24: {stadium id: uid} (fm_estadios.mapa).
+    Slots: 0-3 teams (1st, 2nd, 3rd, 4th), 4-6 other data (left empty), 7 final venue (stadium), 8 copied as is."""
+    e20 = e20 or {}; e24 = e24 or {}
+    s24 = {}
+    for k, u in sorted(e24.items()): s24.setdefault(u, k)
     L20, _, _, a0 = T.leer(ls20); L24, cab24, cola24, b0 = T.leer(ls24)
     R20 = T.tam_fila(ls20); R24 = T.tam_fila(ls24)
     t24 = {}
@@ -37,8 +41,13 @@ def transferir(ls20, dt20, ls24, dt24, u20, u24, desp, hasta=2018, desde=2020):
         for r in f20[i]:
             if Y(r) < desde: continue
             yt = Y(r) + desp; eq = []
-            for t in equipos(r):
-                if t == 0xffffffff: eq.append(t); continue
+            for k, t in enumerate(equipos(r)):
+                if t == 0xffffffff or 4 <= k <= 6: eq.append(0xffffffff); continue
+                if k == 8: eq.append(t); continue
+                if k == 7:
+                    n = s24.get(e20.get(t))
+                    if n is None: est['estadio sin equivalente'] += 1
+                    eq.append(0xffffffff if n is None else n); continue
                 n = t24.get(u20.get(t))
                 if n is None: est['equipo sin equivalente'] += 1
                 eq.append(0xffffffff if n is None else n)
