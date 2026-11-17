@@ -1,52 +1,53 @@
-# Conversor de partidas FM20 → FM24 (experimental)
+# FM20 → FM24 save converter (experimental)
 
-Convierte una partida guardada de **Football Manager 2020** en una partida de **Football Manager 2024**, mediante
-ingeniería inversa del formato `.fm`. Solo hace falta la partida de FM20 y una **plantilla de FM24** (una partida de
-FM24 con todas las ligas cargadas); el conversor **nunca modifica** ninguna de las dos y escribe un `.fm` nuevo.
+Converts a **Football Manager 2020** save game into a **Football Manager 2024** save game, based on reverse
+engineering of the `.fm` format. It only needs the FM20 save and an **FM24 template** (an FM24 save with all the
+leagues loaded); the converter **never modifies** either of them and writes a new `.fm` file.
 
-> Proyecto en desarrollo. Las partidas generadas cargan en FM24, pero no todo se traslada todavía (ver Estado).
+> Work in progress. The generated saves load in FM24, but not everything is carried over yet (see Status).
 
-## Requisitos
+## Requirements
 
-- Python 3.10 o superior
+- Python 3.10 or newer
 - `numpy` (`pip install -r requirements.txt`)
-- `zstd` en el PATH (compresión de FM24): <https://github.com/facebook/zstd/releases>
+- `zstd` in the PATH (FM24 compression): <https://github.com/facebook/zstd/releases>
 
-## Uso
+## Usage
 
 ```
-python conversor/convertir.py PASO partida_fm20.fm plantilla_fm24.fm salida.fm [carpeta_de_trabajo]
+python conversor/convertir.py STEP fm20_save.fm fm24_template.fm output.fm [work_folder]
 ```
 
-`PASO` es `todo` o uno de los pasos, que se pueden ejecutar por separado y en este orden:
+`STEP` is `todo` (all) or one of the steps below, which can also be run one by one in this order:
 
-| Paso | Qué hace |
+| Step | What it does |
 |---|---|
-| `exportar20` | exporta todos los jugadores de FM20 a `fm20.csv` (atributos, contrato, nombres, datos personales) |
-| `exportar24` | lo mismo con la plantilla de FM24 (`base.csv`) |
-| `planificar` | empareja clubes por id único, decide qué ficha de FM24 recibe a cada jugador de FM20, las cesiones y el desfase de años |
-| `mundo` | coloca los clubes en las divisiones de FM20 (intercambios de plaza y cambios de división), copia reputación y presupuestos, cierra cesiones |
-| `jugadores` | trasplanta los jugadores: atributos, posiciones, CA/PA, nombres, nacimiento, nacionalidad, personalidad, contrato, cesiones, plantillas, saldo y patrocinadores |
-| `historial` | historial de liga de cada club, campeones de cada competición (palmarés) y premios por temporada |
+| `exportar20` | exports every FM20 player to `fm20.csv` (attributes, contract, names, personal data) |
+| `exportar24` | same for the FM24 template (`base.csv`) |
+| `planificar` | matches clubs by unique id, decides which FM24 player record receives each FM20 player, loans and the year offset |
+| `mundo` | places the clubs in their FM20 divisions (place swaps and division changes), copies reputation and budgets, ends loans |
+| `jugadores` | transplants the players: attributes, positions, CA/PA, names, birth date, nationality, personality, contract, loans, squads, balance and sponsors |
+| `historial` | league history of every club, winners of every competition (honours) and yearly awards |
 
-La carpeta de trabajo (por defecto `trabajo/`) guarda los resultados intermedios de cada paso.
+The work folder (`trabajo/` by default) keeps the intermediate results of every step.
 
-## Estado
+## Status
 
-**Se traslada:** jugadores (atributos, posiciones, CA/PA, reputación, altura/peso, nombres, nacimiento, nacionalidad,
-personalidad), contratos (sueldo, fechas, cláusulas), cesiones (club dueño / club de cesión y fechas), plantillas,
-divisiones de los clubes, reputación de equipos, presupuestos, saldo y patrocinadores, historial de ligas de los
-clubes, historial de competiciones (palmarés) y premios por temporada.
+**Carried over:** players (attributes, positions, CA/PA, reputation, height/weight, names, birth date, nationality,
+personality), contracts (wage, dates, clauses), loans (parent club / loan club and dates), squads, club divisions,
+team reputation, budgets, balance and sponsors, club league history, competition history (honours, including the
+venue of each final) and yearly awards.
 
-**Pendiente:** historial de temporadas de cada jugador, hitos y lesiones (falta saber a qué persona pertenece cada
-lista), deudas por traspasos, leyendas e iconos de los clubes, manager, competiciones nuevas sin historial anterior a
-2019, nombres cortos, internacionalidades.
+**Pending:** player career history, milestones and injuries (it is still unknown which person each list belongs to),
+results of the season that has just finished (they live in the competition files until the new season starts),
+transfer debts, club legends and icons, the manager, competitions with no history before 2019, short names,
+international caps.
 
-**Fechas:** si la plantilla de FM24 está en la misma fecha que la partida de FM20 no se desplaza nada (plan A).
-Si no, todos los años se desplazan la diferencia entre ambas (plan B).
+**Dates:** if the FM24 template has the same date as the FM20 save nothing is shifted (plan A). Otherwise every year
+is shifted by the difference between both saves (plan B).
 
-## Estructura
+## Layout
 
-- `conversor/` código del conversor (módulos `fm_*.py` y `convertir.py`)
-- `docs/FORMATO.md` lo descubierto del formato de las partidas
-- `investigacion/` scripts de búsqueda usados durante la ingeniería inversa
+- `conversor/` converter code (`fm_*.py` modules and `convertir.py`)
+- `docs/FORMAT.md` what is known about the save format
+- `investigacion/` search scripts used during the reverse engineering

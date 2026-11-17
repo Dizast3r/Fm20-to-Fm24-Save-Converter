@@ -1,0 +1,59 @@
+# The `.fm` save format (FM20 and FM24)
+
+Reverse engineering notes. All integers are little-endian.
+
+## Container
+
+- 26-byte header: `02 01 'fmf.' [version] 00 00 [u64 = index_position - 9] [9 bytes] [compression]`;
+  compression `1` = zlib (FM20), `3` = zstd (FM24).
+- Each internal file is compressed at `26 + offset`.
+- Index at the end: `[02 01 'fmf.'][ver][00 00][compressed index]`. The index holds the save name, the file list
+  (`name`, `extension`, `offset u64`, `compressed u64`, `raw u64`, two timestamps) and one or more subfolders
+  (`rgman`: competition files `comp_N.dat`, `fix_man.dat`, `comp_history_ls.dat`, `player_stats_hist_ls.dat`...).
+- `fmsave.py` reads both formats; `fmcontenedor.py` rebuilds an FM24 container keeping the physical order.
+
+## `game_db.dat`
+
+- Records start with `[id][uid][uid][type]`: the `uid` (unique id) is stable between FM20 and FM24, the ids are not.
+  References from other structures usually store `id + 1`.
+  - person: type `0x02` player, `0x01` retired / non-player, `0x10`, `0x13` others.
+  - team: `[team-1][uid][uid] 0a [flag]` (first team, B teams and youth teams).
+  - national team: `[team-1][uid][uid] 00 01 01 01 01` at the beginning of the file.
+  - stadium: `[stadium-1][uid][uid] 00 [capacity u32]...`, stored consecutively with increasing ids.
+- Player attribute block: 15 positions (1–20) + 54 attributes (1–100, the game shows `round(v/5)`).
+- Dates: `u16` (day of the year in the low 9 bits, time slot in the high 7 bits) + `u16` year; null date `01 00 6c 07`.
+- Money is stored in pounds.
+- Contracts, loans (type 1) and B-team registrations (0xff), squad lists `[ff ff ff ff][n u16][n ids]`.
+
+## `tad` tables (`*_ls.dat` + `*_dt.cmt`)
+
+Histories stored as lists of fixed-size rows. `_dt.cmt` holds the rows one after another; `_ls.dat` holds, for
+every list, the offsets of its rows.
+
+```
+v3 (FM20): 02 01 'tad.' 03 00 00 | free u32 | free x u32 | n u32 | n x [c u32][c x u32 offset] | tail
+v4 (FM24): 03 01 'tad.' 04 00    | free u32 | free x u32 | n u32 | n x [c u32][c x u32 encoded] | tail
+tail = [u32 0][u32 row size][u16 version]
+_dt.cmt header: 9 bytes (v3), 8 bytes (v4)
+```
+
+**v4 encoding:** `S0 = T0`, `Sk = Tk − S(k−1)`; to decode, `Tk = Sk + S(k−1)` (mod 2^32).
+`free` are reusable rows of `_dt`. Implemented in `fm_tad.py` (reading and writing reproduce the original bytes).
+
+The lists do not say who they belong to:
+
+- `tc_league_history` (24 bytes: year, competition, position, teams, stats): one list per team in team id order, only
+  for teams with history. Identified through historical seasons (signature) and through the order.
+- `comp_history` (FM20 54 / FM24 55 bytes): one list per competition, one row per season:
+  `[comp u32][year u16][..][9 x u32][00][04][start year][end year][date]`; slots 0–3 are teams (1st–4th), slot 7 is
+  the stadium of the final, slot 8 is copied as is.
+- `award_year_hist` (82 bytes): one list per award; 3 entries `[person = pid+1][club = uid+1][age]...[nation]`.
+- `player_stats_hist`, `person_record_history`, `injury_histories`: one list per person, **index not found yet**
+  (not in the person record, not next to the person id anywhere in `game_db.dat`, `player_stats.dat` or the
+  other managers). In FM20 the lists were allocated in groups of teammates (team by team) and are reused later.
+
+## Competitions (`rgman/comp_N.dat`, `fix_man.dat`)
+
+League tables are fixed-size rows starting with the team id; fixtures in `fix_man.dat` follow
+`02 00 00 [home u32] ff 00 00 [away u32] ff 00`. The season that has just finished (for example the last Champions
+League final) is kept in the competition file and is only moved to `comp_history` when the new season starts.
