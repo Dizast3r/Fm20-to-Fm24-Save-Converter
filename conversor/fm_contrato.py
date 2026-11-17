@@ -8,6 +8,8 @@ def okdate(m, p, lo=1899, hi=2060):
 def _end(m, st, c):
     e = st - c['tail'] - 17           # caso habitual: lista intermedia vacia
     if e > 8 and m[e - 8:e] == b'\xff' * 8 and okdate(m, e): return e
+    # contrato de un jugador cedido: los 8 bytes previos no son ff (datos de la cesion), las dos fechas si son validas
+    if e > 8 and okdate(m, e) and okdate(m, e + 4) and m[e - 8:e - 4] == b'\xff' * 4: return e
     q = st
     for _ in range(80):
         q = m.rfind(b'\xff' * 8, max(0, st - 6000), q)

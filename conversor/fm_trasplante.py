@@ -185,8 +185,11 @@ def main():
             else: notes.append('cesion: fechas no localizadas')
             dest_ks = [D['ks'][0]]; src_k = S['ks'][0]
         else:
-            fs = K.fields(sm, S['ks'][-1], ssv.version) if S['ks'] else None
-            dest_ks = D['ks']; src_k = S['ks'][-1] if S['ks'] else None
+            fs = None; src_k = None
+            for k_ in reversed(S['ks']):   # el ultimo contrato legible (los de cesion/filial tienen otra estructura)
+                fs = K.fields(sm, k_, ssv.version)
+                if fs: src_k = k_; break
+            dest_ks = D['ks']
         if fs:
             wage = struct.unpack_from('<I', sm, src_k + Ls['wage'])[0]
             ents = [bytes(sm[fs['count'] + 1 + 8 * i:fs['count'] + 9 + 8 * i]) for i in range(fs['n'])]
