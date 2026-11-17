@@ -5,7 +5,7 @@ ANCLA = re.compile(rb'(?=(.{4})(.{4})\2\x00(.{4})\3\3)', re.S)
 PAT = re.compile(rb'(?=(.{4})(.{4})\2\x00)', re.S)
 def mapa(m):
     pos = []
-    for x in ANCLA.finditer(m):
+    for x in ANCLA.finditer(m, 0, min(len(m), 160 << 20)):
         s = struct.unpack('<I', x.group(1))[0] + 1; u = struct.unpack('<I', x.group(2))[0]
         if s < 200000 and 0 < u < 0xffffffff and struct.unpack('<I', x.group(3))[0] < 200000: pos.append((x.start(), s))
     # zona de la tabla: el tramo mas largo de anclas con ids crecientes

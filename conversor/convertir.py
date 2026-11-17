@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """convertir.py - conversor de partidas FM20 -> FM24 (EXPERIMENTAL). Solo necesita la partida de FM20 y una plantilla de FM24.
 Uso:  convertir.py PASO partida_fm20.fm plantilla_fm24.fm salida.fm [carpeta_de_trabajo]
-PASO: exportar20 | exportar24 | planificar | mundo | jugadores | historial | todo
+PASO: exportar20 | exportar24 | planificar | mundo | jugadores | historial | temporada | todo
 Cada paso deja sus resultados en la carpeta de trabajo; 'todo' los ejecuta en orden.
 Nunca modifica la partida de FM20 ni la plantilla."""
 import sys, os, subprocess, struct, csv, json, collections, datetime, mmap
@@ -95,8 +95,9 @@ def planificar(src, base, w):
 def main():
     paso, src, base, out = sys.argv[1], *map(os.path.abspath, sys.argv[2:5])
     w = os.path.abspath(sys.argv[5] if len(sys.argv) > 5 else 'trabajo'); os.makedirs(w, exist_ok=True)
-    pasos = ['exportar20', 'exportar24', 'planificar', 'mundo', 'jugadores', 'historial'] if paso == 'todo' else [paso]
+    pasos = ['exportar20', 'exportar24', 'planificar', 'mundo', 'jugadores', 'historial', 'temporada'] if paso == 'todo' else [paso]
     sal_jug = f'{w}/jugadores.fm' if 'historial' in pasos else out
+    sal_his = f'{w}/historial.fm' if 'temporada' in pasos else out
     for p in pasos:
         print('==', p, flush=True)
         if p == 'exportar20': py('fm_export.py', src, f'{w}/fm20.csv')
@@ -109,7 +110,10 @@ def main():
             py('fm_trasplante.py', src, f'{w}/mundo.fm', sal_jug, '@' + f'{w}/pares.txt', env=dict(ECONOMIA='1', DESPLAZAR_ANIOS=str(des['desplazar_anios'])))
         elif p == 'historial':
             des = json.load(open(f'{w}/desfase.json'))
-            py('fm_hist_liga.py', src, base, f'{w}/jugadores.fm', out, str(des['desplazar_anios']), env=dict(TRABAJO=w))
+            py('fm_hist_liga.py', src, base, f'{w}/jugadores.fm', sal_his, str(des['desplazar_anios']), env=dict(TRABAJO=w))
+        elif p == 'temporada':
+            des = json.load(open(f'{w}/desfase.json'))
+            py('fm_hist_temporada.py', src, base, f'{w}/historial.fm', out, str(des['desplazar_anios']), env=dict(TRABAJO=w))
 
 if __name__ == '__main__':
     main()

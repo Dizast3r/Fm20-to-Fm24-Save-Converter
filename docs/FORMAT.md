@@ -55,5 +55,6 @@ The lists do not say who they belong to:
 ## Competitions (`rgman/comp_N.dat`, `fix_man.dat`)
 
 League tables are fixed-size rows starting with the team id; fixtures in `fix_man.dat` follow
-`02 00 00 [home u32] ff 00 00 [away u32] ff 00`. The season that has just finished (for example the last Champions
-League final) is kept in the competition file and is only moved to `comp_history` when the new season starts.
+`02 00 00 [home u32] ff 00 00 [away u32] ff 00`. The rows of the last finished season(s) of every competition (winner, runner-up, venue of the final...) are kept
+**inside `game_db.dat`**, with the same layout as the `comp_history` rows (FM20 54 bytes, FM24 55 bytes), and are
+only moved to `comp_history` when the next season starts.

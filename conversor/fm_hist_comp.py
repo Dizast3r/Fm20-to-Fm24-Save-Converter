@@ -66,3 +66,54 @@ def transferir(ls20, dt20, ls24, dt24, u20, u24, desp, hasta=2018, desde=2020, e
                 l.insert(k, o); est['temporadas añadidas'] += 1
     nls = T.escribir(cab24, listas, cola24) if extra else ls24
     return nls, bytes(dt + extra), est, par
+
+# --- latest seasons stored inside game_db.dat (the database keeps the rows of the last finished season(s);
+#     comp_history only receives them when the next season starts) ---
+import re
+def filas_db(m, ver, anios):
+    """{(comp, year): (position, row bytes)} for the comp-history rows embedded in game_db.
+    FM20 (54 bytes): [comp][year][start year][9 x u32][00 04][start][end][date]
+    FM24 (55 bytes): [comp][year][00 00][9 x u32][00 04 00][start][end][date]   (one pass over the file)"""
+    anios = set(anios); out = {}; R = 54 if ver == 20 else 55
+    pat = re.compile(rb'(?=(.{4})(.{2})' + (rb'.{2}.{36}\x00\x04.{2}' if ver == 20 else rb'\x00\x00.{36}\x00\x04\x00.{2}') + rb'\2)', re.S)
+    for x in pat.finditer(m):
+        y = struct.unpack('<H', x.group(2))[0]
+        if y in anios: out.setdefault((struct.unpack('<I', x.group(1))[0], y), (x.start(), bytes(m[x.start():x.start() + R])))
+    return out
+def transferir_db(m24, m20, ls20, dt20, ls24, dt24, par, u20, u24, e20, e24, desp, desde=2020):
+    """Overwrites, in place inside the FM24 game_db (bytearray m24), the embedded rows of the seasons
+    that also exist in FM20 (comp_history rows or FM20 embedded rows)."""
+    L20, _, _, a0 = T.leer(ls20); L24, _, _, b0 = T.leer(ls24)
+    R20 = T.tam_fila(ls20)
+    c2c = {}
+    for i, j in par.items():
+        if L20[i] and L24[j]: c2c[struct.unpack_from('<I', dt20, a0 + L20[i][0])[0]] = struct.unpack_from('<I', dt24, b0 + L24[j][0])[0]
+    fuente = {}
+    for l in L20:
+        for o in l:
+            r = bytes(dt20[a0 + o:a0 + o + R20]); y = Y(r)
+            if y >= desde: fuente[(struct.unpack_from('<I', r, 0)[0], y)] = r
+    fin20 = max(y for _, y in fuente) if fuente else 2030
+    for k, (p, r) in filas_db(m20, 20, range(desde, fin20 + 2)).items(): fuente[k] = r
+    destino = filas_db(m24, 24, sorted({y + desp for _, y in fuente}))
+    t24 = {}
+    for t, u in sorted(u24.items()): t24.setdefault(u, t)
+    s24 = {}
+    for k, u in sorted(e24.items()): s24.setdefault(u, k)
+    est = collections.Counter()
+    for (c20, y), r in fuente.items():
+        c24 = c2c.get(c20)
+        if c24 is None or (c24, y + desp) not in destino: continue
+        p, viejo = destino[(c24, y + desp)]; nueva = bytearray(viejo)
+        eq = []
+        for k, t in enumerate(equipos(r)):
+            if t == 0xffffffff or 4 <= k <= 6: eq.append(0xffffffff)
+            elif k == 8: eq.append(t)
+            elif k == 7: eq.append(s24.get(e20.get(t), 0xffffffff))
+            else: eq.append(t24.get(u20.get(t), 0xffffffff))
+        if eq[0] == 0xffffffff: est['bd: temporada sin campeon equivalente'] += 1; continue
+        struct.pack_into('<9I', nueva, 8, *eq)
+        a, b = struct.unpack_from('<HH', r, 46); struct.pack_into('<HH', nueva, 47, a + desp, b + desp)
+        d, fy = struct.unpack_from('<HH', r, 50); struct.pack_into('<HH', nueva, 51, d, fy + desp if fy != 0x76c else fy)
+        m24[p:p + 55] = nueva; est['bd: temporadas sobrescritas'] += 1
+    return est

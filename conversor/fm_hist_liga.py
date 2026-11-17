@@ -84,9 +84,11 @@ def main(src20, plantilla, entrada, salida, desp):
     lc24 = P.read('comp_history_ls.dat', 'rgman'); dc24 = P.read('comp_history_dt.cmt')
     assert E.read('comp_history_ls.dat', 'rgman') == lc24
     import fm_estadios as ES
-    tu20 = U.mapa(m20); tu24 = U.mapa(m24)
-    nls, ndt, ec, _ = HC.transferir(s20.read('comp_history_ls.dat', 'rgman'), s20.read('comp_history_dt.cmt'), lc24, dc24, tu20, tu24, desp,
-                                    e20=ES.mapa(m20), e24=ES.mapa(m24))
+    tu20 = U.mapa(m20); tu24 = U.mapa(m24); es20 = ES.mapa(m20); es24 = ES.mapa(m24)
+    lc20 = s20.read('comp_history_ls.dat', 'rgman'); dc20 = s20.read('comp_history_dt.cmt')
+    nls, ndt, ec, cpar = HC.transferir(lc20, dc20, lc24, dc24, tu20, tu24, desp, e20=es20, e24=es24)
+    import pickle
+    pickle.dump(dict(tu20=tu20, tu24=tu24, es20=es20, es24=es24, cpar=cpar), open(os.environ.get('TRABAJO', 'trabajo') + '/hist_mapas.pkl', 'wb'))
     nuevos[('', 'comp_history_dt.cmt')] = ndt
     if nls != lc24: nuevos[('rgman', 'comp_history_ls.dat')] = nls
     print('historial de competiciones: ' + ' | '.join('%s %d' % kv for kv in ec.items()))

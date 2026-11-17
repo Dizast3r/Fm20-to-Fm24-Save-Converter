@@ -65,7 +65,7 @@ class Contenedor:
         for i in orden:
             g, a, e, off, c, r, t1, t2 = self.entries[i]
             k = (g.decode() if isinstance(g, bytes) else g, (a + e).decode('utf8', 'replace'))
-            if k in nuevos: raw = nuevos[k]; blob = z(raw, lvl); rawlen = len(raw)
+            if k in nuevos: raw = nuevos[k]; blob = z(raw, lvl if len(raw) < (64 << 20) else '-3'); rawlen = len(raw)
             else: blob = self.data[26 + off:26 + off + c]; rawlen = r
             blobs[i] = (blob, rawlen); newoff[i] = pos; pos += len(blob)
         def ps(b): return struct.pack('<I', len(b)) + b
