@@ -1,0 +1,13 @@
+# partidas y ficheros extraidos (pesados y personales)
+*.fm
+*.dat
+*.cmt
+*.bin
+*.zst
+*.pkl
+*.csv
+trabajo*/
+x20/
+x24h/
+__pycache__/
+*.pyc
