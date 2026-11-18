@@ -19,3 +19,23 @@ def mapa(path, ids, tipos=None):
                 b = m[al + 4 * (s + k) + 12]
                 if tipos is None or b in tipos: out[i][(u, b) if tipos is None else u] += 1
     return {i: (c if tipos is None else c.most_common(1)[0][0]) for i, c in out.items()}
+
+TIPOS_PERSONA = {0x01, 0x02, 0x05, 0x09, 0x10, 0x13}
+def por_uid(m, uids, tipos=TIPOS_PERSONA):
+    """{uid: person id} for the given unique ids (records [id][uid][uid][type] with a person type); m = bytes"""
+    us = np.array(sorted(set(uids)), dtype=np.uint32); out = {}
+    if not len(us): return out
+    W = 8 << 20
+    for al in range(4):
+        n = (len(m) - al) // 4; a = np.frombuffer(m, dtype=np.uint32, count=n, offset=al)
+        for s in range(0, n - 2, W):
+            blk = a[s:min(n, s + W + 2)]; k = len(blk) - 2
+            ok = (blk[1:k + 1] == blk[2:k + 2])
+            cand = np.nonzero(ok)[0]
+            if not len(cand): continue
+            v = blk[cand + 1]; q = np.searchsorted(us, v); q[q >= len(us)] = 0
+            sel = cand[us[q] == v]
+            for i in sel.tolist():
+                pos = al + 4 * (s + i)
+                if m[pos + 12] in tipos and int(blk[i]) < 2000000: out.setdefault(int(blk[i + 1]), int(blk[i]))
+    return out

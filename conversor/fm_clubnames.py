@@ -10,6 +10,15 @@ def _cadena(m, p):
     if not 0 < n < 120: return None, p
     try: return m[p + 4:p + 4 + n].decode('utf-8'), p + 4 + n
     except UnicodeDecodeError: return None, p
+def cabeceras(m, hi=40 << 20):
+    """[(position, uid, nation)] of the club records, in file order"""
+    cabs = []
+    for x in CAB.finditer(m, 0, min(len(m), hi)):
+        a, u = struct.unpack('<II', x.group(1) + x.group(2)); v = struct.unpack('<4I', x.group(3))
+        nat = [w for w in v if w != 0xffffffff]
+        if not (a < 400000 and 0 < u < 0x7fffffff and len(nat) >= 2 and len(set(nat)) == 1 and 0 < nat[0] < 300): continue
+        cabs.append((x.start(), u, nat[0]))
+    return cabs
 def nombres(m, hi=40 << 20):
     cabs = []
     for x in CAB.finditer(m, 0, min(len(m), hi)):

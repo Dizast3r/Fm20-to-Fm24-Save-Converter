@@ -95,6 +95,16 @@ The lists do not say who they belong to:
     66/71 club arrivals, 94 joined club, 113 records and firsts, 122/123 debuts.
   - A team, competition or award the game cannot resolve is shown as `team#2` / `comp#1`.
 
+## Club relationships (legends, icons, favoured personnel)
+
+At the end of every club record (club table, before the trailing `00 00`): `[u8 count][entries]`.
+
+- FM20 entry, 12 bytes: `[id u32][kind u8][00][cat u8][sub u8][level u8][flag u8][u8][ff]`
+- FM24 entry, 16 bytes: `[id u32][00 00 00 00][kind u8][00][cat u8][sub u8][level u8][flag u8][u8][ff]`
+- `cat 3 / sub 1`: a person, `id` = pid + 1, `kind` = role (1 player, 2 staff, 5 player and manager...). Legends and
+  icons carry flag `0x4f`; legends have the highest levels. Favoured personnel are the other high levels.
+- `cat 1 / sub 5`, `cat 3 / sub 2`, `cat 4`: clubs and other relationships (left as FM24 has them).
+
 ## Competitions (`rgman/comp_N.dat`, `fix_man.dat`)
 
 League tables are fixed-size rows starting with the team id; fixtures in `fix_man.dat` follow
