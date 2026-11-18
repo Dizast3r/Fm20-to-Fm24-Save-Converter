@@ -26,8 +26,9 @@ def transferir(ls20, dt20, ls24, dt24, mapa, u20, u24, cm, desp):
     for t, v in mapa:
         if v >= len(L20): est['lista FM20 inexistente'] += 1; continue
         offs = []
-        for o in L20[v]:
-            r = convertir(dt20[a0 + o:a0 + o + R20], t24, cm, desp)
+        filas = [convertir(dt20[a0 + o:a0 + o + R20], t24, cm, desp) for o in L20[v]]
+        filas.sort(key=lambda r: struct.unpack_from('<H', r, 11)[0])   # FM24 keeps every list in season order
+        for r in filas:
             offs.append(len(dt) - b0); dt += r
         while len(listas) <= t: listas.append([])
         listas[t] = offs; est['jugadores'] += 1; est['temporadas'] += len(offs)

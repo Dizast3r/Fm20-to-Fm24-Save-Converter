@@ -118,6 +118,7 @@ def main():
     edits = []   # (posicion original, longitud original, bytes nuevos): se aplican todos juntos al final
     # player career history: the list index of every player is a u32 21 bytes before his name record
     hist_out = os.environ.get('HISTORIAL_JUGADORES'); hmap = []; hused = set()
+    L20UID = -34 if ssv.version == 7 else -38; L24UID = -38 if bsv.version == 8 else -34   # [pid][uid][uid] before the block
     if hist_out:
         import fm_tad as TT
         N24 = len(TT.leer(bsv.read('player_stats_hist_ls.dat', 'rgman'))[0]); hnext = N24
@@ -126,6 +127,12 @@ def main():
         if a not in sp or b not in dp: print('NO LOCALIZADO', a, b); continue
         notes = []
         S, D = sp[a], dp[b]
+        if os.environ.get('CAMBIAR_UID', '1') == '1':
+            # FM24 shows the pre-game career of real players from its own database, looked up by unique id:
+            # an FM20 regen gives its (new) unique id to the FM24 player that receives it
+            u20 = struct.unpack_from('<I', sm, S['c'] + L20UID)[0]
+            if 1000000000 <= u20 < 2000000000 and struct.unpack_from('<I', sm, S['c'] + L20UID + 4)[0] == u20:
+                struct.pack_into('<II', dm, D['c'] + L24UID, u20, u20); stats['uid'] = stats.get('uid', 0) + 1
         if hist_out:
             v20 = struct.unpack_from('<I', sm, S['o'] - 21)[0]; v24 = struct.unpack_from('<I', dm, D['o'] - 21)[0]
             if v20 == 0xffffffff: struct.pack_into('<I', dm, D['o'] - 21, 0xffffffff)
@@ -252,6 +259,7 @@ def main():
     print('cesiones trasplantadas:', stats.get('cesiones', 0))
     print('nombres aproximados:', len(stats.get('aprox', [])), stats.get('aprox', [])[:30])
     if hist_out: json.dump(dict(n24=N24, listas=hmap), open(hist_out, 'w')); print('historial de jugadores: listas', len(hmap))
+    print('ids unicos cambiados (regens de FM20):', stats.get('uid', 0))
     print('trasplantados', stats['ok'], '| contrato de origen no localizado', stats['sin_contrato'], '| nombres que no existen en la base', len(stats['sin_nombre']), stats['sin_nombre'][:40])
     # nombres nuevos: se anaden al final de su tabla (primero la de apellidos, que esta mas atras) y se actualiza el contador
     for which in (1, 0):
