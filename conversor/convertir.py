@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """convertir.py - conversor de partidas FM20 -> FM24 (EXPERIMENTAL). Solo necesita la partida de FM20 y una plantilla de FM24.
 Uso:  convertir.py PASO partida_fm20.fm plantilla_fm24.fm salida.fm [carpeta_de_trabajo]
-PASO: exportar20 | exportar24 | planificar | mundo | jugadores | relaciones | plazos | afiliados | manager | historial | temporada | todo
+PASO: exportar20 | exportar24 | planificar | mundo | jugadores | relaciones | plazos | afiliados | manager | historial | carreras | temporada | todo
 Cada paso deja sus resultados en la carpeta de trabajo; 'todo' los ejecuta en orden.
 Nunca modifica la partida de FM20 ni la plantilla."""
 import sys, os, subprocess, struct, csv, json, collections, datetime, mmap
@@ -20,6 +20,11 @@ def py(*args, env=None):
     e = dict(os.environ); e.update(env or {})
     subprocess.run([sys.executable, *args], check=True, env=e, cwd=AQUI)
 
+def leer_csv(path, cols):
+    """rows of a CSV with only the given columns (a dict per row with every column takes gigabytes for 250k rows)"""
+    r = csv.reader(open(path, encoding='utf-8-sig')); cab = next(r); ix = [cab.index(c) for c in cols]
+    return [dict(zip(cols, (row[i] for i in ix))) for row in r]
+
 def planificar(src, base, w):
     import fm_ligas as LG
     from fmsave import Save
@@ -29,7 +34,8 @@ def planificar(src, base, w):
     U.traducir_zona(ts, U.traduccion(sm, bm)[0])
     u24 = {}
     for t, v in tb.items(): u24.setdefault(v['uid'], t)
-    S = list(csv.DictReader(open(f'{w}/fm20.csv', encoding='utf-8-sig'))); B = list(csv.DictReader(open(f'{w}/base.csv', encoding='utf-8-sig')))
+    cols = ('id_jugador', 'id_club', 'id_club_contrato', 'pos_bloque', 'pos_nombre', 'POR', 'CA')   # only what is used: the CSVs of a long template are huge
+    S = leer_csv(f'{w}/fm20.csv', cols); B = leer_csv(f'{w}/base.csv', cols)
     def ncont(x):
         c = int(x['pos_bloque']); o = int(x['pos_nombre']); key = struct.pack('<I', int(x['id_jugador']) + 1); k = c; n = 0
         while True:
@@ -97,7 +103,7 @@ def planificar(src, base, w):
 def main():
     paso, src, base, out = sys.argv[1], *map(os.path.abspath, sys.argv[2:5])
     w = os.path.abspath(sys.argv[5] if len(sys.argv) > 5 else 'trabajo'); os.makedirs(w, exist_ok=True)
-    pasos = ['exportar20', 'exportar24', 'planificar', 'mundo', 'jugadores', 'relaciones', 'plazos', 'afiliados', 'manager', 'historial', 'temporada'] if paso == 'todo' else [paso]
+    pasos = ['exportar20', 'exportar24', 'planificar', 'mundo', 'jugadores', 'relaciones', 'plazos', 'afiliados', 'manager', 'historial', 'carreras', 'temporada'] if paso == 'todo' else [paso]
     sal_jug = f'{w}/jugadores.fm' if 'historial' in pasos else out
     sal_his = f'{w}/historial.fm' if 'temporada' in pasos else out
     for p in pasos:
@@ -127,7 +133,11 @@ def main():
             os.replace(f'{w}/manager.tmp.fm', f'{w}/jugadores.fm')
         elif p == 'historial':
             des = json.load(open(f'{w}/desfase.json'))
-            py('fm_hist_liga.py', src, base, f'{w}/jugadores.fm', sal_his, str(des['desplazar_anios']), env=dict(TRABAJO=w))
+            py('fm_hist_liga.py', src, base, f'{w}/jugadores.fm', sal_his, str(des['desplazar_anios']), env=dict(TRABAJO=w, HISTORIAL_PARTE='liga'))
+        elif p == 'carreras':   # player career history and injuries (separate process: memory), rewrites historial.fm
+            des = json.load(open(f'{w}/desfase.json'))
+            py('fm_hist_liga.py', src, base, f'{w}/historial.fm', f'{w}/carreras.tmp.fm', str(des['desplazar_anios']), env=dict(TRABAJO=w, HISTORIAL_PARTE='jugadores'))
+            os.replace(f'{w}/carreras.tmp.fm', f'{w}/historial.fm')
         elif p == 'temporada':
             des = json.load(open(f'{w}/desfase.json'))
             py('fm_hist_temporada.py', src, base, f'{w}/historial.fm', out, str(des['desplazar_anios']), env=dict(TRABAJO=w))

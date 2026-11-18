@@ -27,7 +27,9 @@ def transferir(ls20, dt20, ls24, dt24, mapa, u20, u24, cm, desp, ps20=None):
     inv = {}
     for t, u in sorted(u24.items()): inv.setdefault(u, t)
     def t24(t): return inv.get(u20.get(t), 0xffffffff)
-    dt = bytearray(dt24); listas = [list(l) for l in L24]; est = collections.Counter()
+    # new rows are appended after the template rows: kept apart and joined once at the end (a long template has a
+    # _dt of several hundred MB: a bytearray copy plus the final bytes would not fit in memory)
+    extra = bytearray(); base = len(dt24) - b0; listas = [list(l) for l in L24]; est = collections.Counter()
     for m_ in mapa:
         t, v = m_[0], m_[1]
         if v >= len(L20): est['lista FM20 inexistente'] += 1; continue
@@ -43,10 +45,10 @@ def transferir(ls20, dt20, ls24, dt24, mapa, u20, u24, cm, desp, ps20=None):
         filas = [convertir(r, t24, cm, desp) for r in r20]
         filas.sort(key=lambda r: struct.unpack_from('<H', r, 11)[0])   # FM24 keeps every list in season order
         for r in filas:
-            offs.append(len(dt) - b0); dt += r
+            offs.append(base + len(extra)); extra += r
         while len(listas) <= t: listas.append([])
         listas[t] = offs; est['jugadores'] += 1; est['temporadas'] += len(offs)
-    return T.escribir(cab, listas, cola), bytes(dt), est
+    return T.escribir(cab, listas, cola), dt24 + bytes(extra), est
 
 # --- season in progress: player_stats.dat (rgman) keeps, per player, [01][pid+1][club u32]... and from byte 23 one
 # 83-byte block per competition type (friendlies, league, cup, continental, international, ...):

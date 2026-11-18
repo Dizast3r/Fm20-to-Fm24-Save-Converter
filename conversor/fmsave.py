@@ -62,6 +62,30 @@ class Save:
                 return d
         raise KeyError(name)
 
+    def cache_path(self, name, cache=None):
+        """path of the decompressed copy of an entry (created if missing), see read_mmap"""
+        import os, hashlib
+        cache = cache or os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cache')
+        os.makedirs(cache, exist_ok=True)
+        st = os.stat(self.f.name)
+        key = hashlib.md5(('%s|%d|%d|%s' % (os.path.abspath(self.f.name), st.st_size, int(st.st_mtime), name)).encode()).hexdigest()
+        p = os.path.join(cache, key + '.dat')
+        if not os.path.exists(p):
+            d = self.read(name); open(p + '.tmp', 'wb').write(d); del d; os.replace(p + '.tmp', p)
+        return p
+    def read_mmap(self, name, cache=None):
+        """the entry decompressed once to a cache file and memory-mapped (read-only): a big game_db does not
+        count against the memory of the process (the machine running the converter has ~3 GB)"""
+        import os, hashlib
+        cache = cache or os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cache')
+        os.makedirs(cache, exist_ok=True)
+        st = os.stat(self.f.name)
+        key = hashlib.md5(('%s|%d|%d|%s' % (os.path.abspath(self.f.name), st.st_size, int(st.st_mtime), name)).encode()).hexdigest()
+        p = os.path.join(cache, key + '.dat')
+        if not os.path.exists(p):
+            d = self.read(name); open(p + '.tmp', 'wb').write(d); del d; os.replace(p + '.tmp', p)
+        fh = open(p, 'rb'); return mmap.mmap(fh.fileno(), 0, access=mmap.ACCESS_READ)
+
 if __name__ == '__main__':
     cmd, path = sys.argv[1], sys.argv[2]
     sv = Save(path)

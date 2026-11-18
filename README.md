@@ -32,9 +32,15 @@ python conversor/convertir.py STEP fm20_save.fm fm24_template.fm output.fm [work
 | `afiliados` | club affiliations (B teams, feeder clubs, loan partners) with their dates, options and annual fee |
 | `manager` | the human manager: name, birth date, nationality, birthplace, appearance and personality of the FM20 manager over the template one |
 | `historial` | career history of every player, league history of every club, winners of every competition (honours, with the venue of each final) and yearly awards |
+| `carreras` | career history and injury history of every player (separate process: a long template does not fit in memory with the rest) |
 | `temporada` | results of the last finished season (for example the last Champions League final), which the database keeps until the next season starts, and the milestones of every player (records, debuts, transfers, team of the week and other awards) |
 
 The work folder (`trabajo/` by default) keeps the intermediate results of every step.
+
+**Template.** Any FM24 save can be the template. With a template at the same date as the FM20 save (for example a
+FM24 game played on holiday until 16/6/2031) no date is shifted; with the original 2023 database every date moves
+8 years back. A long template is big (game_db 574 MB): every step is kept under 3 minutes and ~3.5 GB of memory, the
+decompressed game_db files are memory-mapped from `cache/`.
 
 ## Status
 

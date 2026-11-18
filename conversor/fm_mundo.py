@@ -125,8 +125,12 @@ def main(src, base, out):
             if t in occ: struct.pack_into('<I', fx, x.start(g), occ[t]); nfix += 1
     print('ficheros de liga modificados:', len(tocados), '| apariciones cambiadas en el calendario:', nfix)
     import csv
-    real20 = {int(x['id_club']) for x in csv.DictReader(open(os.environ.get('CSV20', 'fm20_jugadores.csv'), encoding='utf-8-sig')) if x['id_club']}
-    filas24 = list(csv.DictReader(open(os.environ.get('CSV24', 'n24_jugadores.csv'), encoding='utf-8-sig')))
+    def leer(path, cols):   # only the columns used: a long template has hundreds of thousands of rows
+        r = csv.reader(open(path, encoding='utf-8-sig')); cab = next(r); ix = [cab.index(c) for c in cols]
+        return [dict(zip(cols, (row[i] for i in ix))) for row in r]
+    filas20 = leer(os.environ.get('CSV20', 'fm20_jugadores.csv'), ('id_club', 'sueldo_semanal_GBP'))
+    real20 = {int(x['id_club']) for x in filas20 if x['id_club']}
+    filas24 = leer(os.environ.get('CSV24', 'n24_jugadores.csv'), ('id_club', 'id_jugador', 'pos_bloque', 'pos_nombre'))
     real24 = {int(x['id_club']) for x in filas24 if x['id_club']}
     # 4) reputacion de cada equipo (solo equipos con jugadores en ambas partidas)
     su = {}
@@ -143,7 +147,7 @@ def main(src, base, out):
     if os.environ.get('PRESUPUESTOS', '1') == '1':
         import fm_economia as EC
         sal = collections.Counter()
-        for x in csv.DictReader(open(os.environ.get('CSV20', 'fm20_jugadores.csv'), encoding='utf-8-sig')):
+        for x in filas20:
             if x['id_club'] and x['sueldo_semanal_GBP'] and int(x['id_club']) in ts: sal[ts[int(x['id_club'])]['uid']] += int(x['sueldo_semanal_GBP'])
         b20 = EC.budgets_all(sm, 7); b24 = EC.budgets_all(bytes(dm), 8)
         for u, g24 in b24.items():

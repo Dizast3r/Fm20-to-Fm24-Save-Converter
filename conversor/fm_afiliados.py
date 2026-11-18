@@ -36,7 +36,7 @@ def paso(src20, entrada, salida, desp):
     from fmsave import Save
     import fmcontenedor as C, fm_uids as U, fm_plazos as PL
     t0 = time.time(); est = collections.Counter()
-    sm = Save(src20).read('game_db.dat'); E = C.Contenedor(entrada); dm = E.read('game_db.dat')
+    sm = Save(src20).read_mmap('game_db.dat'); E = C.Contenedor(entrada); dm = E.read('game_db.dat')
     tr = U.traduccion(sm, dm)[0]
     id20 = PL.ids_clubes(sm); id24 = PL.ids_clubes(dm)
     club = {}

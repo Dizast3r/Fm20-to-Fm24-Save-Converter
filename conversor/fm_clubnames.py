@@ -10,22 +10,21 @@ def _cadena(m, p):
     if not 0 < n < 120: return None, p
     try: return m[p + 4:p + 4 + n].decode('utf-8'), p + 4 + n
     except UnicodeDecodeError: return None, p
-def cabeceras(m, hi=40 << 20):
-    """[(position, uid, nation)] of the club records, in file order"""
-    cabs = []
+def cabeceras(m, hi=200 << 20, hueco=16 << 20):
+    """[(position, uid, nation)] of the club records, in file order. The table is near the start of game_db
+    (FM20/FM24 template < 40 MB, a FM24 save played for 8 years up to ~90 MB): it ends at the first gap of more than
+    `hueco` bytes without a header"""
+    cabs = []; ultimo = -1
     for x in CAB.finditer(m, 0, min(len(m), hi)):
         a, u = struct.unpack('<II', x.group(1) + x.group(2)); v = struct.unpack('<4I', x.group(3))
         nat = [w for w in v if w != 0xffffffff]
         if not (a < 400000 and 0 < u < 0x7fffffff and len(nat) >= 2 and len(set(nat)) == 1 and 0 < nat[0] < 300): continue
-        cabs.append((x.start(), u, nat[0]))
+        if len(cabs) > 1000 and x.start() - cabs[-1][0] > hueco: break
+        if cabs and not 0 < a - ultimo <= 50: continue   # club ids grow along the table; anything else is noise
+        cabs.append((x.start(), u, nat[0])); ultimo = a
     return cabs
-def nombres(m, hi=40 << 20):
-    cabs = []
-    for x in CAB.finditer(m, 0, min(len(m), hi)):
-        a, u = struct.unpack('<II', x.group(1) + x.group(2)); v = struct.unpack('<4I', x.group(3))
-        nat = [w for w in v if w != 0xffffffff]
-        if not (a < 400000 and 0 < u < 0x7fffffff and len(nat) >= 2 and len(set(nat)) == 1 and 0 < nat[0] < 300): continue
-        cabs.append((x.start(), u, nat[0]))
+def nombres(m, hi=200 << 20):
+    cabs = cabeceras(m, hi)
     out = {}
     for i, (p, u, n) in enumerate(cabs):
         fin = cabs[i + 1][0] if i + 1 < len(cabs) else p + 200000

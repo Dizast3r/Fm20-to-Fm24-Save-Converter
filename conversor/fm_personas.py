@@ -3,7 +3,7 @@ Busca solo los ids pedidos; si un id aparece con varios uid se queda con el de r
 import numpy as np, mmap, collections
 def mapa(path, ids, tipos=None):
     f = open(path, 'rb'); m = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
-    ks = np.array(sorted(set(ids)), dtype=np.uint32); out = collections.defaultdict(collections.Counter)
+    ks = np.array(sorted({i for i in ids if 0 <= i < 0xffffffff}), dtype=np.uint32); out = collections.defaultdict(collections.Counter)
     W = 8 << 20
     for al in range(4):
         n = (len(m) - al) // 4; a = np.frombuffer(m, dtype=np.uint32, count=n, offset=al)

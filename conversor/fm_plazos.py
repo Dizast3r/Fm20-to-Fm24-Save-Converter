@@ -47,7 +47,7 @@ def paso(src20, entrada, salida, pares_txt, desp):
     from fmsave import Save
     import fmcontenedor as C, fm_uids as U
     t0 = time.time(); est = collections.Counter()
-    s20 = Save(src20); sm = s20.read('game_db.dat'); t20 = s20.read('transfer_man.dat')
+    s20 = Save(src20); sm = s20.read_mmap('game_db.dat'); t20 = s20.read('transfer_man.dat')
     E = C.Contenedor(entrada); dm = E.read('game_db.dat'); t24 = E.read('transfer_man.dat')
     pm = {}
     for a in open(pares_txt).read().split():

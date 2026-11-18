@@ -53,7 +53,7 @@ def paso(src20, entrada, salida, pares_txt):
     sys.argv = sys.argv[:1]
     import fm_trasplante as TP
     t = time.time()
-    s20 = Save(src20); sm = s20.read('game_db.dat'); E = C.Contenedor(entrada); dm = E.read('game_db.dat')
+    s20 = Save(src20); sm = s20.read_mmap('game_db.dat'); E = C.Contenedor(entrada); dm = E.read('game_db.dat')
     Ls, Ld = X.LAY[7], X.LAY[8]
     sFN, sSN, sCN, _, _ = TP.tables(sm); dFN, dSN, dCN, _, _ = TP.tables(dm)
     pm = {}
@@ -152,11 +152,12 @@ def paso(src20, entrada, salida, pares_txt):
     for c24, (cp24, n24, nuevas) in nuevas_de.items():
         nuevas = nuevas[:255]
         edits.append((cp24, 1 + 16 * n24, bytes([len(nuevas)]) + b''.join(nuevas))); est['clubes'] += 1
-    edits.sort(); parts = []; cur = 0
+    del sFN, sSN, sCN, dFN, dSN, dCN, l20, l24
+    edits.sort(); parts = []; cur = 0; mv = memoryview(dm)
     for p, ln, new in edits:
         if p < cur: est['solapadas'] += 1; continue
-        parts.append(dm[cur:p]); parts.append(new); cur = p + ln
-    parts.append(dm[cur:]); nm = b''.join(parts)
+        parts.append(mv[cur:p]); parts.append(new); cur = p + ln
+    parts.append(mv[cur:]); nm = b''.join(parts); del parts, mv
     E.escribir(salida, {('', 'game_db.dat'): nm})
     print('relaciones de clubes (leyendas, iconos, favoritos): ' + ' | '.join('%s %d' % kv for kv in est.items()) + ' | %.0fs' % (time.time() - t))
 if __name__ == '__main__':

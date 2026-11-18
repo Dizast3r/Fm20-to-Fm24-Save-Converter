@@ -27,11 +27,22 @@ def table_rows(d, ids, n):
         if struct.unpack_from('<I', d, p)[0] in ids and all(struct.unpack_from('<I', d, p + 414 * i)[0] in ids for i in range(n)): return p
     return None
 
+def posiciones(c, ids):
+    """sorted positions of every u32 (any alignment) whose value is in ids (numpy; a Python loop over a big
+    competition file of a long save takes minutes)"""
+    import numpy as np
+    b = np.frombuffer(bytes(c), dtype=np.uint8); ks = np.array(sorted(ids), dtype=np.uint32); out = []
+    for al in range(4):
+        n = (len(b) - al) // 4
+        if n <= 0: continue
+        v = b[al:al + 4 * n].view('<u4')
+        out += (al + 4 * np.nonzero(np.isin(v, ks))[0]).tolist()
+    return sorted(p for p in out if p < len(c) - 4)
 def swap_all_tables(c, ids, sw, n):
     """todas las tablas del fichero de competicion: n filas de tamano fijo que empiezan por un id de equipo de la division.
     Cambia los ids segun sw; si la tabla estaba ordenada por id, la vuelve a ordenar. Devuelve [(inicio, tamano_fila)]"""
     import collections
-    pos = [i for i in range(len(c) - 4) if struct.unpack_from('<I', c, i)[0] in ids]
+    pos = posiciones(c, ids)
     gaps = collections.Counter(b - a for a, b in zip(pos, pos[1:]) if 60 <= b - a <= 4000)
     done = []
     for S, cnt in gaps.most_common(6):

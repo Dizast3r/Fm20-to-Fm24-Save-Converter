@@ -24,7 +24,7 @@ def nombre20(m, pid, L, FN, SN, CN):
         r = X.find_name(m, x.end(), L, FN, SN, CN, 600)
         if r: votos[(r[0], r[1])] += 1
     return votos.most_common(1)[0][0] if votos else None
-def bloque(m, o, n, ventana=900):
+def bloque(m, o, n, ventana=12000):
     """start of the staff attribute block (n values 1-100 followed by ff ff ff ff) before the name record at o"""
     mejor = None
     for x in re.finditer(rb'\xff\xff\xff\xff', m[o - ventana:o]):
@@ -40,7 +40,8 @@ def caps(m, o, ventana):
     mejor = None
     for x in CAPS.finditer(m, o - ventana, o):
         d1 = struct.unpack_from('<HH', m, x.start(2)); d2 = struct.unpack_from('<HH', m, x.start(3))
-        if d2[1] > 1900 and 1 <= (d2[0] & 0x1ff) <= 366 and (d1[1] == 1900 or 1 <= (d1[0] & 0x1ff) <= 366) and m[x.start(1)] > 0:
+        j = x.start(1) + 12   # followed by the jobs section [0a 00 / 00 00][u32][05]
+        if d2[1] > 1900 and 1 <= (d2[0] & 0x1ff) <= 366 and (d1[1] == 1900 or 1 <= (d1[0] & 0x1ff) <= 366) and m[j + 1] == 0 and m[j + 6] == 5:
             mejor = x.start(1)
     return mejor
 # Jobs of a person (club, national team): after the caps field, up to the "01 14 01 01..." block:
@@ -69,6 +70,21 @@ def equipos(sm, dm):
         u2 = tr.get(u, u) if k == 0x0a else u
         if (u2, k) in t24: out.setdefault(t, t24[(u2, k)])
     return out
+def cabecera_equipo(m, t):
+    """match of the team record header [team id - 1][uid][uid][0a club / 0b nation] (uid not 0)"""
+    for x in re.finditer(re.escape(struct.pack('<I', t - 1)) + rb'(....)\1[\x0a\x0b]', m, re.S):
+        if 0 < struct.unpack('<I', x.group(1))[0] < 0x7fffffff: return x
+    return None
+def campo_manager(m, cab):
+    """position of the manager (pid+1) in a team record: [manager][u32] 00 [ff ff ff ff][squad: n u16][n ids]
+    (clubs: [11 bytes][u32][u32][manager][u32] after the header; national teams have another layout)"""
+    p = cab.start() + 14
+    while True:
+        q = m.find(b'\x00\xff\xff\xff\xff', p, cab.start() + 600)
+        if q < 0: return None
+        n = struct.unpack_from('<H', m, q + 5)[0]
+        if n <= 150 and all(0 < struct.unpack_from('<I', m, q + 7 + 4 * i)[0] < 3000000 for i in range(min(n, 3))): return q - 8
+        p = q + 1
 def empleos(sm, dm, p20, p24, o20, o24, desp):
     import os
     k20 = caps(sm, o20, 400); k24 = caps(dm, o24, 400)
@@ -96,19 +112,46 @@ def empleos(sm, dm, p20, p24, o20, o24, desp):
         hechos.append('equipo %d->%d puesto %02x' % (t20, t24, s20[Q + CAMPOS20['job']]))
         # the team: manager field (the u32 before [ff ff ff ff] 00 [ff ff ff ff][squad]), and the old manager's job
         if s20[Q + CAMPOS20['job']] == 0x10:
-            cab = re.search(re.escape(struct.pack('<I', t24 - 1)) + rb'(....)\1[\x0a\x0b]', dm, re.S)
-            if cab:
-                x = re.search(rb'(....)\xff\xff\xff\xff\x00\xff\xff\xff\xff', dm[cab.start():cab.start() + 4000], re.S)
-                if x:
-                    pm = cab.start() + x.start()
+            cab = cabecera_equipo(dm, t24)
+            pm = campo_manager(dm, cab) if cab else None
+            if pm is not None:
+                if True:
                     viejo = struct.unpack_from('<I', dm, pm)[0]
                     struct.pack_into('<I', dm, pm, p24 + 1)
                     rx = re.compile(re.escape(b'\x01\x00\x6c\x07\x00' + struct.pack('<I', viejo) + struct.pack('<I', t24)), re.S)
                     for y in rx.finditer(dm):
                         if dm[y.end() + 8] == 0x10: dm[y.end() + 8] = 0x14; hechos.append('antiguo manager %d -> segundo' % (viejo - 1))
     if len(c20) != len(cb): return 'empleos: %d en FM20, el modelo tiene %d (sin cambios)' % (len(c20), len(cb))
+    # teams the template human managed and Mendez does not (PLANTILLA 2031: Davi Vienda at Vaduz): vacant
+    nuevos_eq = set(eq.get(struct.unpack_from('<I', s20, Q + CAMPOS20['club'])[0]) for Q in c20)
+    for y in re.finditer(re.escape(struct.pack('<I', p24 + 1)) + rb'....\x00\xff\xff\xff\xff', dm, re.S):
+        cab = None
+        for z in re.finditer(rb'(....)(....)\2[\x0a\x0b]', dm[max(0, y.start() - 4000):y.start()], re.S):
+            if 0 < struct.unpack('<I', z.group(2))[0] < 0x7fffffff: cab = z
+        t = struct.unpack('<I', cab.group(1))[0] + 1 if cab else None
+        if t is None or t in nuevos_eq: continue
+        c2 = cabecera_equipo(dm, t)
+        if c2 is None or campo_manager(dm, c2) != y.start(): continue   # only the manager field of that team
+        struct.pack_into('<I', dm, y.start(), 0xffffffff); hechos.append('equipo %s sin manager' % t)
     dm[k24 + 12:e24] = sec
     return 'empleos: ' + ', '.join(hechos)
+def nombre_humano(m, pid, cab, L, FN, SN, CN):
+    """name record of the FM24 human: the last name record before the next person (pid + 1), since his record ends
+    with it (template: ~50 KB after the header; a save played for years: megabytes)"""
+    import fm_export as X, fm_personas_nombre as PN
+    votos = collections.Counter()   # employed: the name record follows his last contract
+    for x in re.finditer(re.escape(b'\x01\x00\x6c\x07\x00' + struct.pack('<I', pid + 1)), m):
+        r = X.find_name(m, x.end(), L, FN, SN, CN, 600)
+        if r: votos[r] += 1
+    if votos: return votos.most_common(1)[0][0]
+    nx = PN.cabeceras(m, [pid + 1]).get(pid + 1)
+    if nx is None: return X.find_name(m, cab, L, FN, SN, CN, 120000)
+    r = None; q = max(cab, nx - 3000)
+    while True:
+        x = X.find_name(m, q, L, FN, SN, CN, nx - q)
+        if not x or x[0] >= nx: break
+        r = x; q = x[0] + 1
+    return r
 def paso(src20, entrada, salida, desp):
     import time
     from fmsave import Save
@@ -116,13 +159,13 @@ def paso(src20, entrada, salida, desp):
     sys.argv = sys.argv[:1]
     import fm_trasplante as TP
     t0 = time.time()
-    S20 = Save(src20); sm = S20.read('game_db.dat'); h20 = S20.read('humans.dat')
+    S20 = Save(src20); sm = S20.read_mmap('game_db.dat'); h20 = S20.read('humans.dat')
     E = C.Contenedor(entrada); dm = bytearray(E.read('game_db.dat')); h24 = E.read('humans.dat')
     Ls, Ld = X.LAY[7], X.LAY[8]
     sFN, sSN, sCN, _, _ = TP.tables(sm); dFN, dSN, dCN, _, _ = TP.tables(bytes(dm))
     p20, _ = human_pid(sm, h20, 7); p24, c24 = human_pid(dm, h24, 8)
     n20 = nombre20(sm, p20, Ls, sFN, sSN, sCN)
-    r24 = X.find_name(dm, c24, Ld, dFN, dSN, dCN, 120000)
+    r24 = nombre_humano(dm, p24, c24, Ld, dFN, dSN, dCN)
     if not (n20 and r24): print('manager: no localizado', p20, p24, n20, r24); E.escribir(salida, {}); return
     (o20, d20), (o24, d24) = n20, r24[:2]
     fn = sFN.get(struct.unpack_from('<I', sm, o20)[0], ''); sn = sSN.get(struct.unpack_from('<I', sm, o20 + Ls['sn'])[0], '')
