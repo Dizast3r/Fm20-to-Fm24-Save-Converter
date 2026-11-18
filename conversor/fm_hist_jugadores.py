@@ -19,7 +19,9 @@ def convertir(r20, t24, cm, desp):
 def transferir(ls20, dt20, ls24, dt24, mapa, u20, u24, cm, desp, ps20=None):
     L20, _, _, a0 = T.leer(ls20); L24, cab, cola, b0 = T.leer(ls24)
     cur = actuales(ps20, [m[2] for m in mapa if len(m) > 2]) if ps20 else {}
-    ycur = max(struct.unpack_from('<H', dt20, a0 + o + 11)[0] for l in L20[::97] for o in l) + 1
+    # season in progress = the most common last season of the lists + 1 (a few lists already have next season rows)
+    ultimos = collections.Counter(max(struct.unpack_from('<H', dt20, a0 + o + 11)[0] for o in l) for l in L20[::37] if l)
+    ycur = ultimos.most_common(1)[0][0] + 1
     R20 = T.tam_fila(ls20); R24 = T.tam_fila(ls24)
     inv = {}
     for t, u in sorted(u24.items()): inv.setdefault(u, t)
@@ -34,7 +36,8 @@ def transferir(ls20, dt20, ls24, dt24, mapa, u20, u24, cm, desp, ps20=None):
             ult = max(r20, key=lambda r: struct.unpack_from('<H', r, 11)[0]) if r20 else None
             comp = struct.unpack_from('<H', ult, 5)[0] if ult else 0xffff
             nuevas = filas_actuales(ps20, cur[m_[2]], ycur, comp)
-            r20 = [r for r in r20 if struct.unpack_from('<H', r, 11)[0] < ycur] + nuevas
+            club = struct.unpack_from('<I', ps20, cur[m_[2]] + 5)[0]
+            r20 = [r for r in r20 if struct.unpack_from('<H', r, 11)[0] < ycur or struct.unpack_from('<I', r, 1)[0] != club] + nuevas
             est['temporada en curso'] += 1 if nuevas else 0
         filas = [convertir(r, t24, cm, desp) for r in r20]
         filas.sort(key=lambda r: struct.unpack_from('<H', r, 11)[0])   # FM24 keeps every list in season order
