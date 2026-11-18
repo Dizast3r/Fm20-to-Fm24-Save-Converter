@@ -63,11 +63,9 @@ only moved to `comp_history` when the next season starts.
 
 The loan contract record has the loan end and start dates right after 8 bytes `ff`.
 
-- **FM20**: the loan options are a bit field stored 67 bytes before the loan end date
-  (`[byte1][byte2]` = `u16`): `0x0006` = can be recalled + can play cup games (almost every loan has `0x0002`),
-  `0x1000` = the loan cannot be terminated, `0x8000` = can play against the parent club's B team.
-  Other bits seen: `0x0001`, `0x0008`, `0x0100`.
-- **FM24**: the equivalent bytes (35 and 31 bytes before the 8 `ff`) hold one-hot values that do not behave as
-  independent bits in the samples collected so far; the mapping is still unknown.
+- The loan options are the same `u16` bit field in both versions, stored 67 bytes (FM20) or 88 bytes (FM24)
+  before the loan end date: `0x0002` / `0x0004` can be recalled + can play cup games, `0x0001` can play against its
+  own club, `0x1000` the loan cannot be terminated, `0x8000` can play against the parent club's B team
+  (`0x0100` seen together with an optional future fee).
 - The contract with the parent club of a loaned-out player has loan data in the 8 bytes before its dates
   (`ffffffff` + 4 bytes) instead of 8 bytes `ff`.
