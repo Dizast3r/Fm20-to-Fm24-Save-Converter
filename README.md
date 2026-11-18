@@ -27,7 +27,7 @@ python conversor/convertir.py STEP fm20_save.fm fm24_template.fm output.fm [work
 | `planificar` | matches clubs by unique id, decides which FM24 player record receives each FM20 player, loans and the year offset |
 | `mundo` | places the clubs in their FM20 divisions (place swaps and division changes), copies reputation and budgets, ends loans |
 | `jugadores` | transplants the players: attributes, positions, CA/PA, names, birth date, nationality, personality, contract, loans, squads, balance and sponsors |
-| `historial` | league history of every club, winners of every competition (honours, with the venue of each final) and yearly awards |
+| `historial` | career history of every player, league history of every club, winners of every competition (honours, with the venue of each final) and yearly awards |
 | `temporada` | results of the last finished season (for example the last Champions League final), which the database keeps until the next season starts |
 
 The work folder (`trabajo/` by default) keeps the intermediate results of every step.
@@ -37,9 +37,11 @@ The work folder (`trabajo/` by default) keeps the intermediate results of every 
 **Carried over:** players (attributes, positions, CA/PA, reputation, height/weight, names, birth date, nationality,
 personality), contracts (wage, dates, clauses), loans (parent club / loan club and dates), squads, club divisions,
 team reputation, budgets, balance and sponsors, club league history, competition history (honours, including the
-venue of each final and the last finished season) and yearly awards.
+venue of each final and the last finished season), yearly awards, loan options and the career history (season
+stats) of every player.
 
-**Pending:** player career history, milestones and injuries (it is still unknown which person each list belongs to),
+**Pending:** player milestones and injuries (it is still unknown which person each list belongs to), stats of the
+season in progress,
 transfer debts, club legends and icons, the manager, competitions with no history before 2019, short names,
 international caps.
 
