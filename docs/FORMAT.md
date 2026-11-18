@@ -116,6 +116,17 @@ People in these lists are not always full person records:
   among the people of the same FM24 club list.
 - Type 9 records (FM20 pid 295188 in Espanyol's list) are not converted yet (probably the human manager).
 
+## Human manager
+
+- `humans.dat` holds the pid+1 of the human (FM20 byte 11, FM24 byte 10). His person record is type 9.
+- FM24: the name record is inside that record (~50 KB after the header). FM20: it is in the non-player part,
+  right after his contracts `[01 00 6c 07][pid+1][club]...` (Miguel Mendez: pid 295188, born 20/7/1998, Colombia
+  191, Bogota).
+- Same name record layout as players. The saved game list (`save_game_summary.dat`) and `hall_of_fame.dat` keep the
+  name as text.
+- FM20 human: caps field (19 caps, 1 goal) about 300 bytes before the name record and the staff attribute block
+  (51 values, 1-100) about 500 bytes before it. The FM24 template human has 53 values and no caps field.
+
 ## Club affiliations (end of `game_db.dat`)
 
 One table `[count u32]` + count records:

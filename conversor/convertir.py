@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """convertir.py - conversor de partidas FM20 -> FM24 (EXPERIMENTAL). Solo necesita la partida de FM20 y una plantilla de FM24.
 Uso:  convertir.py PASO partida_fm20.fm plantilla_fm24.fm salida.fm [carpeta_de_trabajo]
-PASO: exportar20 | exportar24 | planificar | mundo | jugadores | relaciones | plazos | afiliados | historial | temporada | todo
+PASO: exportar20 | exportar24 | planificar | mundo | jugadores | relaciones | plazos | afiliados | manager | historial | temporada | todo
 Cada paso deja sus resultados en la carpeta de trabajo; 'todo' los ejecuta en orden.
 Nunca modifica la partida de FM20 ni la plantilla."""
 import sys, os, subprocess, struct, csv, json, collections, datetime, mmap
@@ -97,7 +97,7 @@ def planificar(src, base, w):
 def main():
     paso, src, base, out = sys.argv[1], *map(os.path.abspath, sys.argv[2:5])
     w = os.path.abspath(sys.argv[5] if len(sys.argv) > 5 else 'trabajo'); os.makedirs(w, exist_ok=True)
-    pasos = ['exportar20', 'exportar24', 'planificar', 'mundo', 'jugadores', 'relaciones', 'plazos', 'afiliados', 'historial', 'temporada'] if paso == 'todo' else [paso]
+    pasos = ['exportar20', 'exportar24', 'planificar', 'mundo', 'jugadores', 'relaciones', 'plazos', 'afiliados', 'manager', 'historial', 'temporada'] if paso == 'todo' else [paso]
     sal_jug = f'{w}/jugadores.fm' if 'historial' in pasos else out
     sal_his = f'{w}/historial.fm' if 'temporada' in pasos else out
     for p in pasos:
@@ -121,6 +121,10 @@ def main():
             des = json.load(open(f'{w}/desfase.json'))
             py('fm_afiliados.py', src, f'{w}/jugadores.fm', f'{w}/afiliados.tmp.fm', str(des['desplazar_anios']))
             os.replace(f'{w}/afiliados.tmp.fm', f'{w}/jugadores.fm')
+        elif p == 'manager':   # the human manager (fm_manager.py), rewrites jugadores.fm in place
+            des = json.load(open(f'{w}/desfase.json'))
+            py('fm_manager.py', src, f'{w}/jugadores.fm', f'{w}/manager.tmp.fm', str(des['desplazar_anios']))
+            os.replace(f'{w}/manager.tmp.fm', f'{w}/jugadores.fm')
         elif p == 'historial':
             des = json.load(open(f'{w}/desfase.json'))
             py('fm_hist_liga.py', src, base, f'{w}/jugadores.fm', sal_his, str(des['desplazar_anios']), env=dict(TRABAJO=w))
