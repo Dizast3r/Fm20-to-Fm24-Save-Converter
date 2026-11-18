@@ -124,8 +124,14 @@ People in these lists are not always full person records:
   191, Bogota).
 - Same name record layout as players. The saved game list (`save_game_summary.dat`) and `hall_of_fame.dat` keep the
   name as text.
-- FM20 human: caps field (19 caps, 1 goal) about 300 bytes before the name record and the staff attribute block
-  (51 values, 1-100) about 500 bytes before it. The FM24 template human has 53 values and no caps field.
+- Staff block, a few hundred bytes before the name record: `[3 reputations u16][current ability u16][potential u16]`
+  `[formations, FM20 6 bytes / FM24 5][attributes 1-100]` `ff ff ff ff`. FM20 has 51 attributes, FM24 53: FM24 adds
+  one at the start (FM20 i -> FM24 i+1, checked with Pochettino) and one near the end (the last 7 FM20 values are not
+  mapped yet).
+- Caps field `[caps][goals][youth caps][youth goals][date][date]`: FM20 ~300 bytes before the name record, FM24 ~90.
+- Contracts of an employed human (FM24 save "Makondo Kogi"): in the non-player part before the name record,
+  `01 00 6c 07 00 [pid+1][club][6 bytes][wage]`; FM20 `01 00 6c 07 [pid+1][club][wage]`. The template human is
+  unemployed and has none.
 
 ## Club affiliations (end of `game_db.dat`)
 

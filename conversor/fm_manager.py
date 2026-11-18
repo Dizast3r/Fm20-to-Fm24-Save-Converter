@@ -24,6 +24,25 @@ def nombre20(m, pid, L, FN, SN, CN):
         r = X.find_name(m, x.end(), L, FN, SN, CN, 600)
         if r: votos[(r[0], r[1])] += 1
     return votos.most_common(1)[0][0] if votos else None
+def bloque(m, o, n, ventana=900):
+    """start of the staff attribute block (n values 1-100 followed by ff ff ff ff) before the name record at o"""
+    mejor = None
+    for x in re.finditer(rb'\xff\xff\xff\xff', m[o - ventana:o]):
+        s = o - ventana + x.start() - n
+        w = m[s:s + n]
+        if all(1 <= c <= 100 for c in w) and len(set(w)) > 2 and m[s - 6:s - 4] == m[s - 6:s - 4] and struct.unpack_from('<H', m, s - 16 if n == 51 else s - 15)[0] <= 10000:
+            mejor = s
+    return mejor
+CAPS = re.compile(rb'(?=([\x00-\xc8][\x00-\x80][\x00-\x80][\x00-\x80])(..[\x6c-\xff]\x07)(..[\x6c-\xff]\x07))', re.S)
+def caps(m, o, ventana):
+    """caps field of the human: the last [caps][goals][youth][youth][date][date] with a real second date before the
+    name record (FM20 ~300 bytes before it, FM24 ~100)"""
+    mejor = None
+    for x in CAPS.finditer(m, o - ventana, o):
+        d1 = struct.unpack_from('<HH', m, x.start(2)); d2 = struct.unpack_from('<HH', m, x.start(3))
+        if d2[1] > 1900 and 1 <= (d2[0] & 0x1ff) <= 366 and (d1[1] == 1900 or 1 <= (d1[0] & 0x1ff) <= 366) and m[x.start(1)] > 0:
+            mejor = x.start(1)
+    return mejor
 def paso(src20, entrada, salida, desp):
     import time
     from fmsave import Save
@@ -62,6 +81,24 @@ def paso(src20, entrada, salida, desp):
     ciu, _ = CI.traduccion(CI.ciudades(sm), CI.ciudades(bytes(dm)))
     c20 = struct.unpack_from('<I', sm, d20 + 21)[0]
     struct.pack_into('<I', dm, d24 + 25, ciu.get(c20, 0xffffffff))
+    # reputation, ability and staff attributes: [3 reputations u16][current u16][potential u16][formations...]
+    # [attributes 1-100] ff ff ff ff, a few hundred bytes before the name record. FM20 has 51 attributes, FM24 53:
+    # FM24 adds one at the start (FM20 i -> FM24 i + 1, checked with Pochettino) and one near the end (not mapped)
+    a20 = bloque(sm, o20, 51); a24 = bloque(dm, o24, 53)
+    if a20 and a24:
+        dm[a24 - 15:a24 - 5] = sm[a20 - 16:a20 - 6]
+        dm[a24 + 1:a24 + 45] = sm[a20:a20 + 44]
+        notas.append('reputacion y atributos')
+    else: notas.append('atributos no localizados (%s, %s)' % (a20, a24))
+    # international caps and goals: [caps][goals][youth caps][youth goals][date][date]
+    k20 = caps(sm, o20, 400); k24 = caps(dm, o24, 400)
+    if k20 is not None and k24 is not None:
+        dm[k24:k24 + 4] = sm[k20:k20 + 4]
+        for k in (4, 8):
+            d_, y_ = struct.unpack_from('<HH', sm, k20 + k)
+            if y_ > 1900: y_ += desp
+            struct.pack_into('<HH', dm, k24 + k, d_, y_)
+        notas.append('internacional %d/%d' % (sm[k20], sm[k20 + 1]))
     nuevos = {('', 'game_db.dat'): bytes(dm)}
     # the name in the saved game list and in the hall of fame
     def cad(s): b = s.encode('utf-8'); return struct.pack('<I', len(b)) + b
