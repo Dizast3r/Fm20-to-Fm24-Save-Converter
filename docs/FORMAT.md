@@ -59,11 +59,13 @@ The lists do not say who they belong to:
   `[comp u32][year u16][..][9 x u32][00][04][start year][end year][date]`; slots 0–3 are teams (1st–4th), slot 7 is
   the stadium of the final, slot 8 is copied as is.
 - `award_year_hist` (82 bytes): one list per award; 3 entries `[person = pid+1][club = uid+1][age]...[nation]`.
-- `player_stats_hist` (FM20 96 / FM24 152 bytes: `[00][team u32][comp u16][u32][year u16][stats...]`): one list
+- `player_stats_hist` (FM20 96 / FM24 152 bytes: `[00][team u32][comp u16][fee u32][year u16][stats...]`): one list
   per player. The list index of every player is a `u32` stored **21 bytes before the player's name record** in
   `game_db.dat` (`ffffffff` = no list), in FM20 and FM24. Lists are allocated on demand (new lists are appended),
   so the index is not related to the player id. Found by comparing an FM24 save before and after the first match
   day of a season.
+  `fee` is the transfer fee in pounds of the move that ended the spell, on the last row of the selling club (0 = free
+  transfer, `ffffffff` = none); the career screen shows it in the Info column.
 - `injury_histories` (FM20 18 / FM24 16 bytes): one list per person. Its index is stored inside the person record,
   between the attribute block and the name record, as `[ffffffff][date][date][00 00][list u32][03 00 00 00]`.
   Rows: FM20 `[type u32][u32][u8][u8][date][days u16][2 bytes]`, FM24 `[type u16][u32][00][u8][date][days u32]`;

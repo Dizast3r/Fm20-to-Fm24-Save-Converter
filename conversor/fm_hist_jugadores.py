@@ -1,5 +1,6 @@
 """Player career history (player_stats_hist): one list per player, rows of 96 bytes (FM20) / 152 bytes (FM24):
-[00][team u32][division u16][u32 ffffffff][year u16 (season start)][stats...]. The first 69 bytes of stats
+[00][team u32][division u16][fee u32][year u16 (season start)][stats...]; fee = transfer fee in pounds of the move
+that ended the spell (on the selling club's last row; 0 = free, ffffffff = none).. The first 69 bytes of stats
 (starts, sub appearances, goals, assists, player of the match, rating, ...) have the same layout in both versions;
 FM24 adds more fields at the end (left at 0).
 The list of each player is chosen in fm_trasplante (u32 21 bytes before the name record) and written to
@@ -12,7 +13,7 @@ def convertir(r20, t24, cm, desp):
     team = struct.unpack_from('<I', r20, 1)[0]; comp = struct.unpack_from('<H', r20, 5)[0]
     otro = struct.unpack_from('<I', r20, 7)[0]; y = struct.unpack_from('<H', r20, 11)[0]
     struct.pack_into('<I', r, 1, t24(team)); struct.pack_into('<H', r, 5, cm.get(comp, 0xffff) if comp != 0xffff else 0xffff)
-    struct.pack_into('<I', r, 7, t24(otro) if otro != 0xffffffff else 0xffffffff)
+    struct.pack_into('<I', r, 7, otro)   # transfer fee (pounds) of the move that ended this spell, ffffffff = none
     struct.pack_into('<H', r, 11, y + desp if 1900 < y < 2100 else y)
     r[COMUN[0]:COMUN[1]] = r20[COMUN[0]:COMUN[1]]
     return bytes(r)
