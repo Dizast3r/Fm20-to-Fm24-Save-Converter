@@ -116,6 +116,18 @@ People in these lists are not always full person records:
   among the people of the same FM24 club list.
 - Type 9 records (FM20 pid 295188 in Espanyol's list) are not converted yet (probably the human manager).
 
+## Transfer installments (`transfer_man.dat`)
+
+Same layout in FM20 and FM24: one list `[count u32]` + count x 27 bytes
+
+`[03][monthly amount u32][payer club id+1][receiver club id+1][transfer date][months left u8][pid+1][interval u8][date]`
+
+- The amount is per month in pounds; the installment the game shows is amount x interval (interval 12 = yearly,
+  6, 1). Cerofolini: 1388888 x 12 = 16.67M pounds (19.35M euros) a year, 19 months left on 16 Jun 2031 -> Jan 2032
+  and Jan 2033.
+- Club ids are club record ids (not unique ids). The second date is null (1900) in database transfers.
+- The list sits right after another list whose entries end with `8b 00`; it is found by its structure and its count.
+
 ## Competitions (`rgman/comp_N.dat`, `fix_man.dat`)
 
 League tables are fixed-size rows starting with the team id; fixtures in `fix_man.dat` follow

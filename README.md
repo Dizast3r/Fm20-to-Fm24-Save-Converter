@@ -28,6 +28,7 @@ python conversor/convertir.py STEP fm20_save.fm fm24_template.fm output.fm [work
 | `mundo` | places the clubs in their FM20 divisions (place swaps and division changes), copies reputation and budgets, ends loans |
 | `jugadores` | transplants the players: attributes, positions, CA/PA, names, birth date, nationality, personality, appearance (ethnicity, hair, skin tone), birthplace, international caps and debut, contract, loans, squads, balance and sponsors |
 | `relaciones` | club legends / icons / favoured personnel: every person of the FM20 lists is found in FM24 (converted player, same name and birth date, same unique id, or name-only record) |
+| `plazos` | transfer fees still being paid in installments (club finances, transfer debt): the FM20 list replaces the template one |
 | `historial` | career history of every player, league history of every club, winners of every competition (honours, with the venue of each final) and yearly awards |
 | `temporada` | results of the last finished season (for example the last Champions League final), which the database keeps until the next season starts, and the milestones of every player (records, debuts, transfers, team of the week and other awards) |
 
