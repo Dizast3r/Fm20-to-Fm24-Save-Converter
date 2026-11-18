@@ -105,6 +105,15 @@ def main(src20, plantilla, entrada, salida, desp):
     nuevos[('', 'award_year_hist_dt.cmt')] = nda
     if nla != la24: nuevos[('', 'award_year_hist_ls.dat')] = nla
     print('premios: ' + ' | '.join('%s %d' % kv for kv in ea.items()))
+    # player career history
+    if os.path.exists(W + '/historial_jugadores.json'):
+        import fm_hist_jugadores as HJ
+        hj = json.load(open(W + '/historial_jugadores.json'))
+        nl, nd, eh = HJ.transferir(s20.read('player_stats_hist_ls.dat', 'rgman'), s20.read('player_stats_hist_dt.cmt'),
+                                   E.read('player_stats_hist_ls.dat', 'rgman'), E.read('player_stats_hist_dt.cmt'),
+                                   hj['listas'], tu20, tu24, cm, desp)
+        nuevos[('rgman', 'player_stats_hist_ls.dat')] = nl; nuevos[('', 'player_stats_hist_dt.cmt')] = nd
+        print('historial de jugadores: ' + ' | '.join('%s %d' % kv for kv in eh.items()))
     E.escribir(salida, nuevos)
     os.unlink(p20); os.unlink(p24)
     print('historial de liga: bloques FM20 %d | firma %d | anclas %d/%d | comps mapeadas %d' % (len(b20), len(sm), nb, na, len(cm)))

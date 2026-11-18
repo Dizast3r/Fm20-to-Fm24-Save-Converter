@@ -2,7 +2,7 @@
 """fm_trasplante.py - copia jugadores de una partida FM20 sobre jugadores de una partida base FM24 (EXPERIMENTAL).
 Uso: fm_trasplante.py origen_fm20.fm base_fm24.fm salida.fm  id_origen:id_destino [id_origen:id_destino ...]
      (ids de jugador = columna id_jugador de los CSV de fm_export.py).  Nunca modifica origen ni base: escribe 'salida'."""
-import sys, os, re, struct, shutil, subprocess, datetime
+import sys, json, os, re, struct, shutil, subprocess, datetime
 from fmsave import Save
 import fm_export as X
 import fm_contrato as K
@@ -116,11 +116,23 @@ def main():
     import fm_cesiones as CS
     resize = os.environ.get('CAMBIAR_LONGITUD', '1') == '1'
     edits = []   # (posicion original, longitud original, bytes nuevos): se aplican todos juntos al final
+    # player career history: the list index of every player is a u32 21 bytes before his name record
+    hist_out = os.environ.get('HISTORIAL_JUGADORES'); hmap = []; hused = set()
+    if hist_out:
+        import fm_tad as TT
+        N24 = len(TT.leer(bsv.read('player_stats_hist_ls.dat', 'rgman'))[0]); hnext = N24
     stats = dict(ok=0, sin_nombre=[], sin_contrato=0)
     for a, b in sorted(pairs, key=lambda ab: -dp[ab[1]]['c'] if ab[1] in dp else 0):
         if a not in sp or b not in dp: print('NO LOCALIZADO', a, b); continue
         notes = []
         S, D = sp[a], dp[b]
+        if hist_out:
+            v20 = struct.unpack_from('<I', sm, S['o'] - 21)[0]; v24 = struct.unpack_from('<I', dm, D['o'] - 21)[0]
+            if v20 == 0xffffffff: struct.pack_into('<I', dm, D['o'] - 21, 0xffffffff)
+            else:
+                if v24 < N24 and v24 not in hused: t = v24
+                else: t = hnext; hnext += 1
+                hused.add(t); struct.pack_into('<I', dm, D['o'] - 21, t); hmap.append((t, v20))
         fn = sFN.get(struct.unpack_from('<I', sm, S['o'])[0], ''); sn = sSN.get(struct.unpack_from('<I', sm, S['o'] + Ls['sn'])[0], '')
         D['hcn'] = struct.unpack_from('<I', dm, D['o'] + Ld['cn'])[0]
         hfn = dFN.get(struct.unpack_from('<I', dm, D['o'])[0], ''); hsn = dSN.get(struct.unpack_from('<I', dm, D['o'] + Ld['sn'])[0], '')
@@ -239,6 +251,7 @@ def main():
         if os.environ.get('VERBOSO'): print(f'{fn} {sn} (CA {ca}/{pa}, nac. {born})  ->  sustituye a {hfn} {hsn}', '| ' + '; '.join(notes) if notes else '')
     print('cesiones trasplantadas:', stats.get('cesiones', 0))
     print('nombres aproximados:', len(stats.get('aprox', [])), stats.get('aprox', [])[:30])
+    if hist_out: json.dump(dict(n24=N24, listas=hmap), open(hist_out, 'w')); print('historial de jugadores: listas', len(hmap))
     print('trasplantados', stats['ok'], '| contrato de origen no localizado', stats['sin_contrato'], '| nombres que no existen en la base', len(stats['sin_nombre']), stats['sin_nombre'][:40])
     # nombres nuevos: se anaden al final de su tabla (primero la de apellidos, que esta mas atras) y se actualiza el contador
     for which in (1, 0):

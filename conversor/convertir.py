@@ -107,7 +107,7 @@ def main():
             py('fm_mundo.py', src, base, f'{w}/mundo.fm', env=dict(CSV20=f'{w}/fm20.csv', CSV24=f'{w}/base.csv', CESIONES_EQUIPOS=f'{w}/equipos_convertidos.txt', CESIONES_EXCLUIR=f'{w}/cesiones_usadas.txt'))
         elif p == 'jugadores':
             des = json.load(open(f'{w}/desfase.json'))
-            py('fm_trasplante.py', src, f'{w}/mundo.fm', sal_jug, '@' + f'{w}/pares.txt', env=dict(ECONOMIA='1', DESPLAZAR_ANIOS=str(des['desplazar_anios'])))
+            py('fm_trasplante.py', src, f'{w}/mundo.fm', sal_jug, '@' + f'{w}/pares.txt', env=dict(ECONOMIA='1', DESPLAZAR_ANIOS=str(des['desplazar_anios']), HISTORIAL_JUGADORES=f'{w}/historial_jugadores.json'))
         elif p == 'historial':
             des = json.load(open(f'{w}/desfase.json'))
             py('fm_hist_liga.py', src, base, f'{w}/jugadores.fm', sal_his, str(des['desplazar_anios']), env=dict(TRABAJO=w))
