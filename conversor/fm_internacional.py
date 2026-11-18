@@ -14,3 +14,11 @@ def buscar(m, pb, pn, lesion=None):
     if lesion: return campo(m, lesion)
     x = PAT.search(m, min(pb, pn), max(pb, pn))
     return x.start(1) if x else None
+# International debut and first goal: 01 00 6c 07 00 [debut date][nation u32][first goal date][nation u32], a few hundred
+# bytes before the caps field (FM20 and FM24; e.g. Mbappe FM20: 2017 day 84 v 154 Luxembourg, day 243 v 158 Netherlands)
+DEBUT = re.compile(rb'\x01\x00\x6c\x07\x00(..[\x6c-\xff]\x07)(.{4})(..[\x6c-\xff]\x07)(.{4})', re.S)
+def debut(m, caps, ventana=1500):
+    """position of the debut date (the last match before the caps field), or None"""
+    q = None
+    for x in DEBUT.finditer(m, max(0, caps - ventana), caps): q = x.start(1)
+    return q

@@ -118,6 +118,9 @@ def main():
     edits = []   # (posicion original, longitud original, bytes nuevos): se aplican todos juntos al final
     # player career history: the list index of every player is a u32 21 bytes before his name record
     hist_out = os.environ.get('HISTORIAL_JUGADORES'); hmap = []; hused = set()
+    import fm_ciudades as CI
+    CIUDADES, est_ci = CI.traduccion(CI.ciudades(sm), CI.ciudades(bytes(dm)))
+    print('ciudades FM20->FM24: ' + ' | '.join('%s %d' % kv for kv in est_ci.items()))
     L20UID = -34 if ssv.version == 7 else -38; L24UID = -38 if bsv.version == 8 else -34   # [pid][uid][uid] before the block
     if hist_out:
         import fm_tad as TT
@@ -167,6 +170,15 @@ def main():
                     d_, y_ = struct.unpack_from('<HH', sm, i20 + k)
                     struct.pack_into('<HH', dm, i24 + k, d_, y_ + shift if y_ > 1900 else y_)
             stats['internacional'] = stats.get('internacional', 0) + (dm[i24] > 0)
+            # international debut and first goal (date + opponent nation, nations have the same ids in both versions)
+            q24 = IN.debut(dm, i24); q20 = IN.debut(sm, i20) if i20 is not None else None
+            if q24 is not None:
+                if q20 is None: dm[q24:q24 + 16] = (b'\x01\x00\x6c\x07' + b'\xff' * 4) * 2
+                else:
+                    dm[q24:q24 + 16] = sm[q20:q20 + 16]
+                    for k in (0, 8):
+                        d_, y_ = struct.unpack_from('<HH', sm, q20 + k)
+                        if y_ > 1900: struct.pack_into('<HH', dm, q24 + k, d_, y_ + shift)
         if hist_out:
             v20 = struct.unpack_from('<I', sm, S['o'] - 21)[0]; v24 = struct.unpack_from('<I', dm, D['o'] - 21)[0]
             if v20 == 0xffffffff: struct.pack_into('<I', dm, D['o'] - 21, 0xffffffff)
@@ -215,6 +227,9 @@ def main():
         if d == 366 and not (y % 4 == 0 and (y % 100 or y % 400 == 0)): d = 365
         struct.pack_into('<HH', dm, D['dpos'], d, y)
         dm[D['dpos'] + 9:D['dpos'] + 13] = sm[S['dpos'] + 9:S['dpos'] + 13]
+        # birthplace (city id + 1): FM20 name record + 21, FM24 + 25; cities matched by uid / coordinates (fm_ciudades)
+        c20_ = struct.unpack_from('<I', sm, S['dpos'] + 21)[0]
+        struct.pack_into('<I', dm, D['dpos'] + 25, CIUDADES.get(c20_, 0xffffffff))
         # appearance (used by the game to draw generated faces): [u8][ethnicity][hair colour][hair length][skin tone]
         # right after the birth date; same scales except the hair colour (FM20 1-6 -> FM24 7, 9, 11, 13, 15, 11)
         ap = bytearray(sm[S['dpos'] + 4:S['dpos'] + 9])
