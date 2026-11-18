@@ -129,9 +129,18 @@ People in these lists are not always full person records:
   one at the start (FM20 i -> FM24 i+1, checked with Pochettino) and one near the end (the last 7 FM20 values are not
   mapped yet).
 - Caps field `[caps][goals][youth caps][youth goals][date][date]`: FM20 ~300 bytes before the name record, FM24 ~90.
-- Contracts of an employed human (FM24 save "Makondo Kogi"): in the non-player part before the name record,
-  `01 00 6c 07 00 [pid+1][club][6 bytes][wage]`; FM20 `01 00 6c 07 [pid+1][club][wage]`. The template human is
-  unemployed and has none.
+- Jobs section of a person, after the caps field and up to the `01 14 01 01...` block:
+  `[0a 00][u32][05][00][01]`, then per job `[00 x12][01 00 6c 07][ff x8][00 x9]` + contract. The contract starts
+  `ff 03 04` (FM20 `ff 01 04`) and holds the end date, start date and a review date, then `01 00 6c 07` (`00` in
+  FM24) `[pid+1][team id][4 zero bytes, FM24 only][weekly wage u32][job u8]`. Jobs: `0x10` manager, `0x14`
+  assistant manager, `0x0e` scout, `0x1a` fitness coach, `0x22` goalkeeping coach, `0x40` head of youth...
+- An unemployed FM24 human has `00 00 ff ff ff ff 05 ff ff ff ff ff 00 x6` instead. The FM24 section is built from
+  `data/fm24_human_jobs.bin` (a human with a club job and a national team job, from another FM24 save) with the FM20
+  values. Contracts store team ids (Espanyol FM20 1497 / FM24 1433, Spain FM20 702 / FM24 678), not club ids.
+- Team record: the manager is the u32 right before `ff ff ff ff 00 ff ff ff ff [squad count u16][ids]` (FM24; FM20
+  clubs have another u32 in between). The previous manager's contract is changed to assistant manager.
+- Club staff (except the manager) is listed by area in the club record after its team list:
+  `[n][ids]` medical, coaching, scouting... (pid+1).
 
 ## Club affiliations (end of `game_db.dat`)
 

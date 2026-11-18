@@ -43,6 +43,72 @@ def caps(m, o, ventana):
         if d2[1] > 1900 and 1 <= (d2[0] & 0x1ff) <= 366 and (d1[1] == 1900 or 1 <= (d1[0] & 0x1ff) <= 366) and m[x.start(1)] > 0:
             mejor = x.start(1)
     return mejor
+# Jobs of a person (club, national team): after the caps field, up to the "01 14 01 01..." block:
+# [0a 00][u32][05][00][01] then per contract [00 x 12][01 00 6c 07][ff x 8][00 x 9][contract], each contract
+# "ff 03 04 ..." (FM20 "ff 01 04") with its end date, start date and review date, then [01 00 6c 07]([00] FM24)
+# [pid+1][team][4 zero bytes, FM24][weekly wage u32][job u8: 0x10 manager, 0x14 assistant...].
+# An unemployed FM24 human has "00 00 ff ff ff ff 05 ff ff ff ff ff 00 x 6" instead. FM24 sections are built from
+# data/fm24_human_jobs.bin (a FM24 human with a club and a national team job), with the FM20 values.
+CAMPOS20 = dict(club=4, wage=8, job=12, end=-41, start=-37, rev=-23)
+CAMPOS24 = dict(club=4, wage=12, job=16, end=-43, start=-39, rev=-24)
+def _pids(sec, pid1):
+    k = struct.pack('<I', pid1); return [i for i in range(len(sec) - 3) if sec[i:i + 4] == k]
+def equipos(sm, dm):
+    """FM20 team id -> FM24 team id, for club first teams (0a) and national teams (0b), by unique id"""
+    import fm_uids as U
+    tr = U.traduccion(sm, dm)[0]
+    def tabla(m):
+        out = {}
+        for x in re.finditer(rb'(....)(....)\2([\x0a\x0b])', m, re.S):
+            t = struct.unpack('<I', x.group(1))[0] + 1; u = struct.unpack('<I', x.group(2))[0]
+            if 0 < t < 400000 and 0 < u < 0x7fffffff: out.setdefault((u, x.group(3)[0]), t)
+        return out
+    t20 = tabla(sm); t24 = tabla(dm)
+    out = {}
+    for (u, k), t in t20.items():
+        u2 = tr.get(u, u) if k == 0x0a else u
+        if (u2, k) in t24: out.setdefault(t, t24[(u2, k)])
+    return out
+def empleos(sm, dm, p20, p24, o20, o24, desp):
+    import os
+    k20 = caps(sm, o20, 400); k24 = caps(dm, o24, 400)
+    e20 = sm.find(b'\x01\x14\x01\x01', k20); e24 = dm.find(b'\x01\x14\x01\x01', k24)
+    s20 = sm[k20 + 12:e20]; c20 = _pids(s20, p20 + 1)
+    if not c20: return 'sin empleos en FM20'
+    base = bytearray(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'fm24_human_jobs.bin'), 'rb').read())
+    cb = _pids(base, struct.unpack_from('<I', base, 111)[0])
+    if len(c20) != len(cb): return 'empleos: %d en FM20, el modelo tiene %d (sin cambios)' % (len(c20), len(cb))
+    eq = equipos(sm, dm); hechos = []
+    sec = bytearray(base)
+    struct.pack_into('<I', sec, 2, 0xffffffff)
+    for i, P in enumerate(cb):
+        if i >= len(c20): break
+        Q = c20[i]; t20 = struct.unpack_from('<I', s20, Q + CAMPOS20['club'])[0]; t24 = eq.get(t20)
+        if t24 is None: hechos.append('equipo %d sin equivalente' % t20); continue
+        struct.pack_into('<I', sec, P, p24 + 1)
+        struct.pack_into('<I', sec, P + CAMPOS24['club'], t24)
+        struct.pack_into('<I', sec, P + CAMPOS24['wage'], struct.unpack_from('<I', s20, Q + CAMPOS20['wage'])[0])
+        sec[P + CAMPOS24['job']] = s20[Q + CAMPOS20['job']]
+        for k in ('end', 'start', 'rev'):
+            d_, y_ = struct.unpack_from('<HH', s20, Q + CAMPOS20[k])
+            if 1900 < y_ < 2100: y_ += desp
+            struct.pack_into('<HH', sec, P + CAMPOS24[k], d_, y_)
+        hechos.append('equipo %d->%d puesto %02x' % (t20, t24, s20[Q + CAMPOS20['job']]))
+        # the team: manager field (the u32 before [ff ff ff ff] 00 [ff ff ff ff][squad]), and the old manager's job
+        if s20[Q + CAMPOS20['job']] == 0x10:
+            cab = re.search(re.escape(struct.pack('<I', t24 - 1)) + rb'(....)\1[\x0a\x0b]', dm, re.S)
+            if cab:
+                x = re.search(rb'(....)\xff\xff\xff\xff\x00\xff\xff\xff\xff', dm[cab.start():cab.start() + 4000], re.S)
+                if x:
+                    pm = cab.start() + x.start()
+                    viejo = struct.unpack_from('<I', dm, pm)[0]
+                    struct.pack_into('<I', dm, pm, p24 + 1)
+                    rx = re.compile(re.escape(b'\x01\x00\x6c\x07\x00' + struct.pack('<I', viejo) + struct.pack('<I', t24)), re.S)
+                    for y in rx.finditer(dm):
+                        if dm[y.end() + 8] == 0x10: dm[y.end() + 8] = 0x14; hechos.append('antiguo manager %d -> segundo' % (viejo - 1))
+    if len(c20) != len(cb): return 'empleos: %d en FM20, el modelo tiene %d (sin cambios)' % (len(c20), len(cb))
+    dm[k24 + 12:e24] = sec
+    return 'empleos: ' + ', '.join(hechos)
 def paso(src20, entrada, salida, desp):
     import time
     from fmsave import Save
@@ -99,6 +165,9 @@ def paso(src20, entrada, salida, desp):
             if y_ > 1900: y_ += desp
             struct.pack_into('<HH', dm, k24 + k, d_, y_)
         notas.append('internacional %d/%d' % (sm[k20], sm[k20 + 1]))
+    # jobs: the human's contracts (club and national team), fm_manager.empleos
+    try: notas.append(empleos(sm, dm, p20, p24, o20, o24, desp))
+    except Exception as ex: notas.append('empleos: %r' % ex)
     nuevos = {('', 'game_db.dat'): bytes(dm)}
     # the name in the saved game list and in the hall of fame
     def cad(s): b = s.encode('utf-8'); return struct.pack('<I', len(b)) + b
