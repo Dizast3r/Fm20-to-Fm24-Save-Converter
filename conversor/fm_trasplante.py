@@ -348,37 +348,7 @@ def main():
                 shiftd(r, 2); shiftd(r, 6); r[15:19] = sids[i % len(sids)]; recs.append(bytes(r))
             edits.append((z['cnt'], 1 + 24 * z['n'], bytes([len(recs)]) + b''.join(recs), 'patrocinios')); nsp += 1
         print('economia: saldo copiado en', nsal, 'clubes | patrocinios reemplazados en', nsp)
-    # club relationships: legends, icons and favoured personnel (fm_relaciones)
-    if os.environ.get('RELACIONES', '1') == '1':
-        import fm_relaciones as FR, fm_personas as FP, fm_uids as U
-        dmb = bytes(dm)
-        l20 = FR.listas(sm, 7); l24 = FR.listas(dmb, 8)
-        tr = U.traduccion(sm, dmb)[0]
-        pm = {a: b for a, b in pairs}
-        ids = {FR.persona(e, 7) - 1 for _, _, es in l20.values() for e in es if FR.persona(e, 7)}
-        import tempfile
-        fd, tmp = tempfile.mkstemp(); os.write(fd, sm); os.close(fd)
-        u20 = FP.mapa(tmp, [i for i in ids if i not in pm], tipos=FP.TIPOS_PERSONA); os.unlink(tmp)
-        u24 = FP.por_uid(dmb, set(u20.values())); del dmb
-        def p24(i):
-            if i in pm: return pm[i]
-            return u24.get(u20.get(i))
-        nr = nper = nfal = 0
-        for c20, (cp20, n20, es20) in l20.items():
-            c24 = tr.get(c20, c20)
-            if c24 is None or c24 not in l24: continue
-            cp24, n24, es24 = l24[c24]
-            nuevas = [e for e in es24 if not FR.persona(e, 8)]; vistos = set()
-            for e in es20:
-                i = FR.persona(e, 7)
-                if not i: continue
-                q = p24(i - 1)
-                if q is None: nfal += 1; continue
-                if q in vistos: continue
-                vistos.add(q); nuevas.append(FR.a_fm24(e, q + 1)); nper += 1
-            if len(nuevas) > 255: nuevas = nuevas[:255]
-            edits.append((cp24, 1 + 16 * n24, bytes([len(nuevas)]) + b''.join(nuevas), 'relaciones')); nr += 1
-        print('relaciones de clubes (leyendas, iconos, favoritos): clubes', nr, '| personas', nper, '| sin equivalente', nfal)
+    # club relationships (legends, icons, favoured personnel): separate step, fm_relaciones.py
     # listas de plantilla de los equipos: quitar a los reciclados de su equipo anterior y anadirlos al nuevo
     if moved and os.environ.get('LISTAS', '1') == '1':
         import fm_ligas as LG, fm_plantillas as PL

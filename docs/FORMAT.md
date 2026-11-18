@@ -105,6 +105,17 @@ At the end of every club record (club table, before the trailing `00 00`): `[u8 
   icons carry flag `0x4f`; legends have the highest levels. Favoured personnel are the other high levels.
 - `cat 1 / sub 5`, `cat 3 / sub 2`, `cat 4`: clubs and other relationships (left as FM24 has them).
 
+People in these lists are not always full person records:
+
+- Unique ids of real people changed between versions (Pochettino FM20 pid 464 / uid 4058, FM24 pid 465 / uid 4054),
+  so they are matched by first name + surname + birth date (`fm_personas_nombre.py`).
+- Name-only records, type 5: `[pid][uid][uid][05][00 00 00 00][len u32][full name]` (Daniel Jarque, Ángel Morales,
+  Daniel Solsona...). The game shows them in the club information without a profile. Matched by full name; when FM24
+  has none, an FM24 name-only record no list uses any more is renamed.
+- Type `0x10` records: `[pid][uid][uid][10][00][first name id][surname id]...` (N'Kono in FM20); matched by name, first
+  among the people of the same FM24 club list.
+- Type 9 records (FM20 pid 295188 in Espanyol's list) are not converted yet (probably the human manager).
+
 ## Competitions (`rgman/comp_N.dat`, `fix_man.dat`)
 
 League tables are fixed-size rows starting with the team id; fixtures in `fix_man.dat` follow
