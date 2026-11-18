@@ -53,8 +53,13 @@ The lists do not say who they belong to:
   `game_db.dat` (`ffffffff` = no list), in FM20 and FM24. Lists are allocated on demand (new lists are appended),
   so the index is not related to the player id. Found by comparing an FM24 save before and after the first match
   day of a season.
-- `person_record_history`, `injury_histories`: one list per person, index not found yet (it is not next to the
-  name record).
+- `injury_histories` (FM20 18 / FM24 16 bytes): one list per person. Its index is stored inside the person record,
+  between the attribute block and the name record, as `[ffffffff][date][date][00 00][list u32][03 00 00 00]`.
+  Rows: FM20 `[type u32][u32][u8][u8][date][days u16][2 bytes]`, FM24 `[type u16][u32][00][u8][date][days u32]`;
+  both versions share the same 114 injury types.
+- `person_record_history` (milestones, FM20 44 / FM24 42 bytes): one list per person; its index follows the injury
+  field: `[date][0a][flag]([u32] if flag = 1)[list u32][05 00]`. The row layouts differ between versions
+  (FM20 starts with the team, FM24 with the date).
 
 ## Competitions (`rgman/comp_N.dat`, `fix_man.dat`)
 

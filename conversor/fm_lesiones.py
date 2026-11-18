@@ -36,3 +36,9 @@ def transferir(ls20, dt20, ls24, dt24, mapa, desp):
         while len(listas) <= t: listas.append([])
         listas[t] = offs; est['jugadores'] += 1; est['lesiones'] += len(offs)
     return T.escribir(cab, listas, cola), bytes(dt), est
+
+# milestones (person_record_history): after the injury field comes [..][date][0a][flag]([u32] if flag)[list u32][05 00]
+HIT = re.compile(rb'(..[\xc0-\xff]\x07)\x0a(?:\x00|\x01(?:.{4}))(.{4})\x05\x00', re.S)
+def campo_hitos(m, q, limite=160):
+    x = HIT.search(m, q + 4, q + limite)
+    return (x.start(2), struct.unpack('<I', x.group(2))[0]) if x else None
