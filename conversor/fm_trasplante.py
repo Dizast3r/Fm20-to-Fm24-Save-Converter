@@ -139,7 +139,7 @@ def main():
             else:
                 if v24 < N24 and v24 not in hused: t = v24
                 else: t = hnext; hnext += 1
-                hused.add(t); struct.pack_into('<I', dm, D['o'] - 21, t); hmap.append((t, v20))
+                hused.add(t); struct.pack_into('<I', dm, D['o'] - 21, t); hmap.append((t, v20, a))
         fn = sFN.get(struct.unpack_from('<I', sm, S['o'])[0], ''); sn = sSN.get(struct.unpack_from('<I', sm, S['o'] + Ls['sn'])[0], '')
         D['hcn'] = struct.unpack_from('<I', dm, D['o'] + Ld['cn'])[0]
         hfn = dFN.get(struct.unpack_from('<I', dm, D['o'])[0], ''); hsn = dSN.get(struct.unpack_from('<I', dm, D['o'] + Ld['sn'])[0], '')

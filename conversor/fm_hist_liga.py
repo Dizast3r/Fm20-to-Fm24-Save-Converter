@@ -111,7 +111,7 @@ def main(src20, plantilla, entrada, salida, desp):
         hj = json.load(open(W + '/historial_jugadores.json'))
         nl, nd, eh = HJ.transferir(s20.read('player_stats_hist_ls.dat', 'rgman'), s20.read('player_stats_hist_dt.cmt'),
                                    E.read('player_stats_hist_ls.dat', 'rgman'), E.read('player_stats_hist_dt.cmt'),
-                                   hj['listas'], tu20, tu24, cm, desp)
+                                   hj['listas'], tu20, tu24, cm, desp, ps20=s20.read('player_stats.dat', 'rgman'))
         nuevos[('rgman', 'player_stats_hist_ls.dat')] = nl; nuevos[('', 'player_stats_hist_dt.cmt')] = nd
         print('historial de jugadores: ' + ' | '.join('%s %d' % kv for kv in eh.items()))
     E.escribir(salida, nuevos)
