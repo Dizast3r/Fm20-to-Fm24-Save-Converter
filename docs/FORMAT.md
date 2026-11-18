@@ -48,9 +48,13 @@ The lists do not say who they belong to:
   `[comp u32][year u16][..][9 x u32][00][04][start year][end year][date]`; slots 0–3 are teams (1st–4th), slot 7 is
   the stadium of the final, slot 8 is copied as is.
 - `award_year_hist` (82 bytes): one list per award; 3 entries `[person = pid+1][club = uid+1][age]...[nation]`.
-- `player_stats_hist`, `person_record_history`, `injury_histories`: one list per person, **index not found yet**
-  (not in the person record, not next to the person id anywhere in `game_db.dat`, `player_stats.dat` or the
-  other managers). In FM20 the lists were allocated in groups of teammates (team by team) and are reused later.
+- `player_stats_hist` (FM20 96 / FM24 152 bytes: `[00][team u32][comp u16][u32][year u16][stats...]`): one list
+  per player. The list index of every player is a `u32` stored **21 bytes before the player's name record** in
+  `game_db.dat` (`ffffffff` = no list), in FM20 and FM24. Lists are allocated on demand (new lists are appended),
+  so the index is not related to the player id. Found by comparing an FM24 save before and after the first match
+  day of a season.
+- `person_record_history`, `injury_histories`: one list per person, index not found yet (it is not next to the
+  name record).
 
 ## Competitions (`rgman/comp_N.dat`, `fix_man.dat`)
 
