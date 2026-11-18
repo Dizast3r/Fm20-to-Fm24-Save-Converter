@@ -114,6 +114,12 @@ def main(src20, plantilla, entrada, salida, desp):
                                    hj['listas'], tu20, tu24, cm, desp, ps20=s20.read('player_stats.dat', 'rgman'))
         nuevos[('rgman', 'player_stats_hist_ls.dat')] = nl; nuevos[('', 'player_stats_hist_dt.cmt')] = nd
         print('historial de jugadores: ' + ' | '.join('%s %d' % kv for kv in eh.items()))
+        if hj.get('lesiones'):
+            import fm_lesiones as LS
+            nl, nd, el = LS.transferir(s20.read('injury_histories_ls.dat'), s20.read('injury_histories_dt.cmt'),
+                                       E.read('injury_histories_ls.dat'), E.read('injury_histories_dt.cmt'), hj['lesiones'], desp)
+            nuevos[('', 'injury_histories_ls.dat')] = nl; nuevos[('', 'injury_histories_dt.cmt')] = nd
+            print('lesiones: ' + ' | '.join('%s %d' % kv for kv in el.items()))
     E.escribir(salida, nuevos)
     os.unlink(p20); os.unlink(p24)
     print('historial de liga: bloques FM20 %d | firma %d | anclas %d/%d | comps mapeadas %d' % (len(b20), len(sm), nb, na, len(cm)))

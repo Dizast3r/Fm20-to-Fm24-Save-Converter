@@ -122,6 +122,8 @@ def main():
     if hist_out:
         import fm_tad as TT
         N24 = len(TT.leer(bsv.read('player_stats_hist_ls.dat', 'rgman'))[0]); hnext = N24
+        import fm_lesiones as LS
+        N24L = len(TT.leer(bsv.read('injury_histories_ls.dat'))[0]); lnext = N24L; lmap = []; lused = set()
     stats = dict(ok=0, sin_nombre=[], sin_contrato=0)
     for a, b in sorted(pairs, key=lambda ab: -dp[ab[1]]['c'] if ab[1] in dp else 0):
         if a not in sp or b not in dp: print('NO LOCALIZADO', a, b); continue
@@ -133,6 +135,14 @@ def main():
             u20 = struct.unpack_from('<I', sm, S['c'] + L20UID)[0]
             if 1000000000 <= u20 < 2000000000 and struct.unpack_from('<I', sm, S['c'] + L20UID + 4)[0] == u20:
                 struct.pack_into('<II', dm, D['c'] + L24UID, u20, u20); stats['uid'] = stats.get('uid', 0) + 1
+        if hist_out:   # injury history list (field inside the record, see fm_lesiones)
+            c20 = LS.campo(sm, S['c'], S['o']); c24 = LS.campo(dm, D['c'], D['o'])
+            if c24:
+                if not c20 or c20[1] == 0xffffffff: struct.pack_into('<I', dm, c24[0], 0xffffffff)
+                else:
+                    t = c24[1] if c24[1] < N24L and c24[1] not in lused else lnext
+                    if t == lnext: lnext += 1
+                    lused.add(t); struct.pack_into('<I', dm, c24[0], t); lmap.append((t, c20[1]))
         if hist_out:
             v20 = struct.unpack_from('<I', sm, S['o'] - 21)[0]; v24 = struct.unpack_from('<I', dm, D['o'] - 21)[0]
             if v20 == 0xffffffff: struct.pack_into('<I', dm, D['o'] - 21, 0xffffffff)
@@ -258,7 +268,7 @@ def main():
         if os.environ.get('VERBOSO'): print(f'{fn} {sn} (CA {ca}/{pa}, nac. {born})  ->  sustituye a {hfn} {hsn}', '| ' + '; '.join(notes) if notes else '')
     print('cesiones trasplantadas:', stats.get('cesiones', 0))
     print('nombres aproximados:', len(stats.get('aprox', [])), stats.get('aprox', [])[:30])
-    if hist_out: json.dump(dict(n24=N24, listas=hmap), open(hist_out, 'w')); print('historial de jugadores: listas', len(hmap))
+    if hist_out: json.dump(dict(n24=N24, listas=hmap, lesiones=lmap), open(hist_out, 'w')); print('historial de jugadores: listas', len(hmap))
     print('ids unicos cambiados (regens de FM20):', stats.get('uid', 0))
     print('trasplantados', stats['ok'], '| contrato de origen no localizado', stats['sin_contrato'], '| nombres que no existen en la base', len(stats['sin_nombre']), stats['sin_nombre'][:40])
     # nombres nuevos: se anaden al final de su tabla (primero la de apellidos, que esta mas atras) y se actualiza el contador
