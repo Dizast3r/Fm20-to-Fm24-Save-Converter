@@ -26,7 +26,7 @@ python conversor/convertir.py STEP fm20_save.fm fm24_template.fm output.fm [work
 | `exportar24` | same for the FM24 template (`base.csv`) |
 | `planificar` | matches clubs (by unique id, or by nation + name when a club got another unique id in FM24), decides which FM24 player record receives each FM20 player, loans and the year offset |
 | `mundo` | places the clubs in their FM20 divisions (place swaps and division changes), copies reputation and budgets, ends loans |
-| `jugadores` | transplants the players: attributes, positions, CA/PA, names, birth date, nationality, personality, contract, loans, squads, balance and sponsors |
+| `jugadores` | transplants the players: attributes, positions, CA/PA, names, birth date, nationality, personality, international caps, contract, loans, squads, balance and sponsors |
 | `historial` | career history of every player, league history of every club, winners of every competition (honours, with the venue of each final) and yearly awards |
 | `temporada` | results of the last finished season (for example the last Champions League final), which the database keeps until the next season starts, and the milestones of every player (records, debuts, transfers, team of the week and other awards) |
 
@@ -38,10 +38,11 @@ The work folder (`trabajo/` by default) keeps the intermediate results of every 
 personality), contracts (wage, dates, clauses), loans (parent club / loan club and dates), squads, club divisions,
 team reputation, budgets, balance and sponsors, club league history, competition history (honours, including the
 venue of each final and the last finished season), yearly awards, loan options and the career history (season
-stats, including the season in progress) of every player, injury history and milestones.
+stats, including the season in progress) of every player, injury history, milestones and international caps and
+goals (senior and youth).
 
 **Pending:** transfer history with fees, transfer debts, club legends and icons, the manager, competitions with no
-history before 2019, short names, international caps.
+history before 2019, short names.
 
 **Club matching:** most clubs keep their unique id between FM20 and FM24, but some got another one and their old id
 may belong to a different club in FM24 (Rennes 883 -> 881, while 881 was Poitiers in FM20). Clubs are matched by unique

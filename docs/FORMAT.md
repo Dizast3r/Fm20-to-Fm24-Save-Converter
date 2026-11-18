@@ -68,6 +68,9 @@ The lists do not say who they belong to:
   between the attribute block and the name record, as `[ffffffff][date][date][00 00][list u32][03 00 00 00]`.
   Rows: FM20 `[type u32][u32][u8][u8][date][days u16][2 bytes]`, FM24 `[type u16][u32][00][u8][date][days u32]`;
   both versions share the same 114 injury types.
+- International caps (person record, both versions): `[caps u8][goals u8][youth caps u8][youth goals u8][date][date]`,
+  right before the milestones field `[u8][flag]([u32] if flag)[list u32][05 00]`. FM24 template, June 2023:
+  Cristiano Ronaldo `c8 7b 0a 03` (200, 123, 10, 3), Messi `af 67 12 0e` (175, 103, 18, 14).
 - `person_record_history` (milestones, FM20 44 / FM24 42 bytes): one list per person; its index follows the injury
   field: `[date][0a][flag]([u32] if flag = 1)[list u32][05 00]`. Rows:
   - FM20: `[00][team u32][u8][team2 u32][person u32][comp u16][award u16][date][A..E 5×u32][type u8][flag u8]`

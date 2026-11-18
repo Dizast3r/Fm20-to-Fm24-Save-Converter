@@ -152,6 +152,17 @@ def main():
                         t = h24[1] if h24[1] < N24H and h24[1] not in hhused else hhnext
                         if t == hhnext: hhnext += 1
                         hhused.add(t); struct.pack_into('<I', dm, h24[0], t); hhmap.append((t, h20[1]))
+        # international caps and goals (senior and youth), see fm_internacional
+        import fm_internacional as IN
+        i20 = IN.buscar(sm, S['c'], S['o'], c20[0] if hist_out and c20 else None)
+        i24 = IN.buscar(dm, D['c'], D['o'], c24[0] if hist_out and c24 else None)
+        if i24 is not None:
+            dm[i24:i24 + 4] = sm[i20:i20 + 4] if i20 is not None else b'\x00' * 4
+            if i20 is not None:
+                for k in (4, 8):
+                    d_, y_ = struct.unpack_from('<HH', sm, i20 + k)
+                    struct.pack_into('<HH', dm, i24 + k, d_, y_ + shift if y_ > 1900 else y_)
+            stats['internacional'] = stats.get('internacional', 0) + (dm[i24] > 0)
         if hist_out:
             v20 = struct.unpack_from('<I', sm, S['o'] - 21)[0]; v24 = struct.unpack_from('<I', dm, D['o'] - 21)[0]
             if v20 == 0xffffffff: struct.pack_into('<I', dm, D['o'] - 21, 0xffffffff)
@@ -279,6 +290,7 @@ def main():
     print('nombres aproximados:', len(stats.get('aprox', [])), stats.get('aprox', [])[:30])
     if hist_out: json.dump(dict(n24=N24, listas=hmap, lesiones=lmap, hitos=hhmap), open(hist_out, 'w')); print('historial de jugadores: listas', len(hmap))
     print('ids unicos cambiados (regens de FM20):', stats.get('uid', 0))
+    print('internacionales (con partidos con su seleccion):', stats.get('internacional', 0))
     print('trasplantados', stats['ok'], '| contrato de origen no localizado', stats['sin_contrato'], '| nombres que no existen en la base', len(stats['sin_nombre']), stats['sin_nombre'][:40])
     # nombres nuevos: se anaden al final de su tabla (primero la de apellidos, que esta mas atras) y se actualiza el contador
     for which in (1, 0):
