@@ -116,6 +116,18 @@ People in these lists are not always full person records:
   among the people of the same FM24 club list.
 - Type 9 records (FM20 pid 295188 in Espanyol's list) are not converted yet (probably the human manager).
 
+## Club affiliations (end of `game_db.dat`)
+
+One table `[count u32]` + count records:
+
+- FM20, 43 bytes: `[parent club id+1][options, 5 bytes][affiliate club id+1][start date][end date][flags u32]`
+  `[annual fee u32, pounds][32 32][date][ff ff ff 00][u32]`
+- FM24, 47 bytes: the same plus a date at the end (null in the template).
+- The 5 option bytes are a bit field shared by both versions: `04 c2 c5 80 00` B team, `03 25 02 00 00` loans + youth
+  + fee (Montpellier, Rangers...), `03 2d 02 00 00` also first option to sign players (Boavista), `03 21 02 00 00`
+  youth + fee (Colo Colo, León).
+- Espanyol FM20: fee 200000 pounds (232.204 euros in the game), Boavista 125404.
+
 ## Transfer installments (`transfer_man.dat`)
 
 Same layout in FM20 and FM24: one list `[count u32]` + count x 27 bytes
