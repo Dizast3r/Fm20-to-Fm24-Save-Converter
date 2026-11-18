@@ -181,7 +181,12 @@ def main():
             fs = K.fields(sm, S['ks'][0], ssv.version)
             struct.pack_into('<I', dm, D['ks'][1] + Ld['wage'], struct.unpack_from('<I', sm, kl + Ls['wage'])[0])
             l20 = CS.loan_dates(sm, kl); l24 = CS.loan_dates(dm, D['ks'][1])
-            if l20 and l24: putdate(l24[0], l20[0]); putdate(l24[1], l20[1]); notes.append('cesion: fechas copiadas')
+            if l20 and l24:
+                putdate(l24[0], l20[0]); putdate(l24[1], l20[1]); notes.append('cesion: fechas copiadas')
+                # loan options (same bit field in FM20 and FM24): 0x0002/0x0004 recall + cup games, 0x0001 can play
+                # against its own club, 0x1000 cannot be terminated, 0x8000 can play against the parent club's B team
+                o20 = l20[0] - (67 if ssv.version == 7 else 88); o24 = l24[0] - (88 if bsv.version == 8 else 67)
+                dm[o24:o24 + 2] = sm[o20:o20 + 2]
             else: notes.append('cesion: fechas no localizadas')
             dest_ks = [D['ks'][0]]; src_k = S['ks'][0]
         else:
