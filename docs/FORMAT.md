@@ -24,8 +24,12 @@ Reverse engineering notes. All integers are little-endian.
     The records `[id][uid][uid] 00 01 01 01 01` at the beginning of the file are cities (they carry coordinates);
     their ids overlap the team ids.
   - competition: `[comp-1][uid][uid] 00 [u8][u8] 01 ...` followed by a run of `06` bytes.
-  - club (FM24): `[club id][uid][uid] 00 [nation]...[len u32][full name][len u32][short name]`; the team record of
-    the first team carries the club uid.
+  - club: `[club id][uid][uid] 00` + four u32 that are the nation or `ffffffff` (FM24 `[nation][ff][nation][nation]`,
+    FM20 also `[nation][ff][ff][nation]` and `[ff][nation][ff][nation]`); the names come later in the record, after up
+    to several KB for big clubs, usually after `00 01 01 [u8 in FM20]`: `[len u32][full name][len u32][short name]`.
+    The team record of the first team carries the club uid. Reserve and youth teams are clubs too.
+  - award ids are mostly the same in both versions (team of the week of La Liga = 158 in both); some moved by one or
+    two (405 -> 403, 608 -> 606).
   - stadium: `[stadium-1][uid][uid] 00 [capacity u32]...`, stored consecutively with increasing ids.
 - Player attribute block: 15 positions (1–20) + 54 attributes (1–100, the game shows `round(v/5)`).
 - Dates: `u16` (day of the year in the low 9 bits, time slot in the high 7 bits) + `u16` year; null date `01 00 6c 07`.

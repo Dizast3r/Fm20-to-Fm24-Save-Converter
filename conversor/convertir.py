@@ -25,6 +25,8 @@ def planificar(src, base, w):
     from fmsave import Save
     sm = Save(src).read('game_db.dat'); bm = Save(base).read('game_db.dat')
     ts = LG.team_zone(sm); tb = LG.team_zone(bm)
+    import fm_uids as U   # clubs whose uid changed between FM20 and FM24
+    U.traducir_zona(ts, U.traduccion(sm, bm)[0])
     u24 = {}
     for t, v in tb.items(): u24.setdefault(v['uid'], t)
     S = list(csv.DictReader(open(f'{w}/fm20.csv', encoding='utf-8-sig'))); B = list(csv.DictReader(open(f'{w}/base.csv', encoding='utf-8-sig')))

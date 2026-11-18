@@ -291,7 +291,8 @@ def main():
     # economia: saldo (i32) y lista de patrocinios de cada club, emparejando clubes por su id unico
     if os.environ.get('ECONOMIA') == '1':
         import fm_patrocinios as PT, fm_ligas as LG, fm_clubes as CB
-        c20 = PT.by_club20(sm, LG.team_zone(sm)); dmb = bytes(dm); c24 = PT.by_club24(dmb, CB.clubs(dmb, 8, 60 << 20)); del dmb
+        import fm_uids as U
+        dmb = bytes(dm); c20 = PT.by_club20(sm, U.traducir_zona(LG.team_zone(sm), U.traduccion(sm, dmb)[0])); c24 = PT.by_club24(dmb, CB.clubs(dmb, 8, 60 << 20)); del dmb
         def shiftd(buf, p):
             d, y = struct.unpack_from('<HH', buf, p)
             if y < 1950: return

@@ -44,6 +44,9 @@ def main(src20, plantilla, entrada, salida, desp):
     b24 = [[bytes(dt24p[d0 + x:d0 + x + 24]) for x in o] for o in off24]
     m20, p20 = gamedb(s20.read('game_db.dat')); m24, p24 = gamedb(P.read('game_db.dat'))
     ts20 = LG.team_zone(m20); ts24 = LG.team_zone(m24)
+    import fm_uids as U   # clubs whose uid changed between FM20 and FM24
+    tr_uid, est_uid = U.traduccion(m20, m24); U.traducir_zona(ts20, tr_uid)
+    print('clubes FM20->FM24: ' + ' | '.join('%s %d' % kv for kv in est_uid.items()))
     fin20 = max(Y(x) for b in b20 for x in b); fin24 = max(Y(x) for b in b24 for x in b if Y(x) < 2100)
     sm = firma(b20, b24); cm = mapa_comps(b20, b24, sm)
     a24 = O.asignar(b24, ts24, fin24 - 1); u24 = {t: ts24[t]['uid'] for t in a24.values()}
@@ -84,7 +87,7 @@ def main(src20, plantilla, entrada, salida, desp):
     lc24 = P.read('comp_history_ls.dat', 'rgman'); dc24 = P.read('comp_history_dt.cmt')
     assert E.read('comp_history_ls.dat', 'rgman') == lc24
     import fm_estadios as ES
-    tu20 = U.mapa(m20); tu24 = U.mapa(m24); es20 = ES.mapa(m20); es24 = ES.mapa(m24)
+    tu20 = {t: U.aplicar(tr_uid, u) for t, u in U.mapa(m20).items()}; tu24 = U.mapa(m24); es20 = ES.mapa(m20); es24 = ES.mapa(m24)
     lc20 = s20.read('comp_history_ls.dat', 'rgman'); dc20 = s20.read('comp_history_dt.cmt')
     nls, ndt, ec, cpar = HC.transferir(lc20, dc20, lc24, dc24, tu20, tu24, desp, e20=es20, e24=es24)
     import pickle
@@ -121,12 +124,7 @@ def main(src20, plantilla, entrada, salida, desp):
             nuevos[('', 'injury_histories_ls.dat')] = nl; nuevos[('', 'injury_histories_dt.cmt')] = nd
             print('lesiones: ' + ' | '.join('%s %d' % kv for kv in el.items()))
         if hj.get('hitos'):
-            import fm_hitos as HT, fm_tad as TT
-            inv = {}
-            for t_, u_ in sorted(tu24.items()): inv.setdefault(u_, t_)
-            def ht24(t_): return inv.get(tu20.get(t_), 0xffffffff)
-            pares = HP.leer_pares(W + '/pares.txt')
-            def hp24(p_): return pares[p_ - 1] + 1 if p_ - 1 in pares else 0xffffffff
+            import fm_tad as TT, pickle
             # competitions: unique ids of the competition records, then league codes and comp_history pairing;
             # awards: award_year_hist pairing
             import fm_comps_uid as CU
@@ -138,10 +136,10 @@ def main(src20, plantilla, entrada, salida, desp):
             L20a, _, _, x0 = TT.leer(la20); L24a, _, _, y0 = TT.leer(la24); a24 = {}
             for i_, j_ in apar.items():
                 if L20a[i_] and L24a[j_]: a24[struct.unpack_from('<H', da20, x0 + L20a[i_][0] + 2)[0]] = struct.unpack_from('<H', da24, y0 + L24a[j_][0] + 2)[0]
-            nl, nd, eh2 = HT.transferir(s20.read('person_record_history_ls.dat'), s20.read('person_record_history_dt.cmt'),
-                                        E.read('person_record_history_ls.dat'), E.read('person_record_history_dt.cmt'), hj['hitos'], desp, ht24, hp24, c24, a24)
-            nuevos[('', 'person_record_history_ls.dat')] = nl; nuevos[('', 'person_record_history_dt.cmt')] = nd
-            print('hitos: ' + ' | '.join('%s %d' % kv for kv in eh2.items()) + ' | premios mapeados %d | competiciones mapeadas %d (codigos de liga distintos %d)' % (len(a24), len(c24), dif))
+            # the milestones themselves are converted in the 'temporada' step (fm_hist_temporada.py)
+            mp = pickle.load(open(W + '/hist_mapas.pkl', 'rb')); mp.update(c24=c24, a24=a24)
+            pickle.dump(mp, open(W + '/hist_mapas.pkl', 'wb'))
+            print('mapas para hitos: premios %d | competiciones %d (codigos de liga distintos %d)' % (len(a24), len(c24), dif))
     E.escribir(salida, nuevos)
     os.unlink(p20); os.unlink(p24)
     print('historial de liga: bloques FM20 %d | firma %d | anclas %d/%d | comps mapeadas %d' % (len(b20), len(sm), nb, na, len(cm)))

@@ -41,6 +41,8 @@ def main(src, base, out):
     ssv = Save(src); sm = ssv.read('game_db.dat')
     C = FC.Contenedor(base); dm = bytearray(C.read('game_db.dat'))
     ts = LG.team_zone(sm); tb = LG.team_zone(bytes(dm))
+    import fm_uids as U   # clubs whose uid changed between FM20 and FM24
+    U.traducir_zona(ts, U.traduccion(sm, bytes(dm))[0])
     M, W, miembros, u20 = plan_divisiones(tb, ts)
     # ficheros de competicion de liga: los que contienen a todos los equipos de la division
     nombres = [n for g, n in C.names() if g == b'rgman' and n.startswith('comp_') and n[5:-4].isdigit()]
