@@ -101,7 +101,7 @@ def main(src20, plantilla, entrada, salida, desp):
     pu20, _ = HP.uids_personas(p20, W + '/fm20.csv', -38, HP.ids_premiados(la20, da20))
     pu24, club24 = HP.uids_personas(p24, W + '/base.csv', -42, HP.ids_premiados(la24, da24))
     campo = {u: u + 1 for u in set(tu24.values())}   # el campo club de los premios es uid del club + 1
-    nla, nda, ea, _ = HP.transferir(la20, da20, la24, da24, pu20, pu24, HP.leer_pares(W + '/pares.txt'), tu20, tu24, campo, desp)
+    nla, nda, ea, apar = HP.transferir(la20, da20, la24, da24, pu20, pu24, HP.leer_pares(W + '/pares.txt'), tu20, tu24, campo, desp)
     nuevos[('', 'award_year_hist_dt.cmt')] = nda
     if nla != la24: nuevos[('', 'award_year_hist_ls.dat')] = nla
     print('premios: ' + ' | '.join('%s %d' % kv for kv in ea.items()))
@@ -120,6 +120,25 @@ def main(src20, plantilla, entrada, salida, desp):
                                        E.read('injury_histories_ls.dat'), E.read('injury_histories_dt.cmt'), hj['lesiones'], desp)
             nuevos[('', 'injury_histories_ls.dat')] = nl; nuevos[('', 'injury_histories_dt.cmt')] = nd
             print('lesiones: ' + ' | '.join('%s %d' % kv for kv in el.items()))
+        if hj.get('hitos'):
+            import fm_hitos as HT, fm_tad as TT
+            inv = {}
+            for t_, u_ in sorted(tu24.items()): inv.setdefault(u_, t_)
+            def ht24(t_): return inv.get(tu20.get(t_), 0xffffffff)
+            pares = HP.leer_pares(W + '/pares.txt')
+            def hp24(p_): return pares[p_ - 1] + 1 if p_ - 1 in pares else 0xffffffff
+            # competitions: league codes + comp_history pairing; awards: award_year_hist pairing
+            c24 = dict(cm)
+            L20c, _, _, x0 = TT.leer(lc20); L24c, _, _, y0 = TT.leer(lc24)
+            for i_, j_ in cpar.items():
+                if L20c[i_] and L24c[j_]: c24.setdefault(struct.unpack_from('<I', dc20, x0 + L20c[i_][0])[0], struct.unpack_from('<I', dc24, y0 + L24c[j_][0])[0])
+            L20a, _, _, x0 = TT.leer(la20); L24a, _, _, y0 = TT.leer(la24); a24 = {}
+            for i_, j_ in apar.items():
+                if L20a[i_] and L24a[j_]: a24[struct.unpack_from('<H', da20, x0 + L20a[i_][0] + 2)[0]] = struct.unpack_from('<H', da24, y0 + L24a[j_][0] + 2)[0]
+            nl, nd, eh2 = HT.transferir(s20.read('person_record_history_ls.dat'), s20.read('person_record_history_dt.cmt'),
+                                        E.read('person_record_history_ls.dat'), E.read('person_record_history_dt.cmt'), hj['hitos'], desp, ht24, hp24, c24, a24)
+            nuevos[('', 'person_record_history_ls.dat')] = nl; nuevos[('', 'person_record_history_dt.cmt')] = nd
+            print('hitos: ' + ' | '.join('%s %d' % kv for kv in eh2.items()) + ' | premios mapeados %d' % len(a24))
     E.escribir(salida, nuevos)
     os.unlink(p20); os.unlink(p24)
     print('historial de liga: bloques FM20 %d | firma %d | anclas %d/%d | comps mapeadas %d' % (len(b20), len(sm), nb, na, len(cm)))
