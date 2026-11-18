@@ -34,7 +34,7 @@ def gamedb(save):
     fd, p = tempfile.mkstemp(); os.write(fd, save); os.close(fd)
     f = open(p, 'rb'); return mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ), p
 PARTE = os.environ.get('HISTORIAL_PARTE', 'todo')   # todo | liga (all but the players) | jugadores (players only)
-def main_jugadores(src20, entrada, salida, desp):
+def main_jugadores(src20, plantilla, entrada, salida, desp):
     """player career history and injuries only (a long template does not fit in memory with everything else):
     uses the maps left by the 'liga' part in hist_mapas.pkl"""
     import fm_hist_jugadores as HJ, pickle
@@ -52,10 +52,36 @@ def main_jugadores(src20, entrada, salida, desp):
                                    E.read('injury_histories_ls.dat'), E.read('injury_histories_dt.cmt'), hj['lesiones'], desp)
         nuevos[('', 'injury_histories_ls.dat')] = nl; nuevos[('', 'injury_histories_dt.cmt')] = nd
         print('lesiones: ' + ' | '.join('%s %d' % kv for kv in el.items()))
+    # database history (seasons before the game): fm_pl_hist
+    try:
+        lsp = E.read('pl_hist_ls.dat'); dtp = E.read('pl_hist_dt.cmt')
+    except Exception: lsp = None
+    if lsp is not None and len(lsp) > 1000:
+        import fm_pl_hist as PH, fm_tad as TT, csv
+        def uids(path, m, d):
+            r = csv.reader(open(path, encoding='utf-8-sig')); h = next(r); i, j = h.index('id_jugador'), h.index('pos_bloque'); out = {}
+            for row in r:
+                try: pid, pb = int(row[i]), int(row[j])
+                except ValueError: continue
+                a, b, c = struct.unpack_from('<III', m, pb + d)
+                if a == pid and b == c: out[pid] = b
+            return out
+        m24 = fmsave.Save(plantilla).read_mmap('game_db.dat'); m20 = s20.read_mmap('game_db.dat')
+        hu = uids(W + '/base.csv', m24, -42); u20 = uids(W + '/fm20.csv', m20, -38)
+        pares = []
+        for tok in open(W + '/pares.txt').read().split():
+            v = tok.split(':'); pares.append((int(v[0]), int(v[1])))
+        nl = len(TT.leer(lsp)[0])
+        tab = PH.tabla(m24, nl, [hu[h] for _, h in pares[:200] if h in hu])
+        if tab:
+            nl_, nd_, ep = PH.transferir(lsp, dtp, pares, hu, u20, tab, 2019 + desp)
+            nuevos[('', 'pl_hist_ls.dat')] = nl_; nuevos[('', 'pl_hist_dt.cmt')] = nd_
+            print('historial de base de datos (pl_hist): tabla %d | ' % len(tab) + ' | '.join('%s %d' % kv for kv in ep.items()))
+        else: print('historial de base de datos (pl_hist): tabla no localizada')
     E.escribir(salida, nuevos)
     return {}
 def main(src20, plantilla, entrada, salida, desp):
-    if PARTE == 'jugadores': return main_jugadores(src20, entrada, salida, desp)
+    if PARTE == 'jugadores': return main_jugadores(src20, plantilla, entrada, salida, desp)
     s20 = fmsave.Save(src20)
     ls20 = s20.read('tc_league_history_ls.dat'); dt20 = s20.read('tc_league_history_dt.cmt')
     b20 = H.leer(ls20, dt20)[0]

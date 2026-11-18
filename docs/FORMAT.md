@@ -142,6 +142,20 @@ People in these lists are not always full person records:
 - Club staff (except the manager) is listed by area in the club record after its team list:
   `[n][ids]` medical, coaching, scouting... (pid+1).
 
+## Database career history (`pl_hist_ls.dat` / `pl_hist_dt.cmt`)
+
+Seasons before the game started ("2016/17 Pro Vercelli, 0 apps"). Empty in the 2023 template; a save played for years
+has it. A 'tad' list per player, rows of 40 bytes `[from year u16][to year u16][u8 type][apps u8][goals u8][fee i32]`
+`[club uid+1][club uid+1][...]`. game_db has a table `[uid u32][list - 1 u32]` sorted by unique id. A transplanted
+player kept the list of the FM24 player whose record he took (Girardot showed Quagliata's Pro Vercelli/Heracles
+years): his list now gets the rows before the FM20 start of the same real player in FM24, or nothing.
+
+## Teams of a club
+
+The club record lists its teams `[n][team ids]` (FM20 Espanyol: 1497 first team, 71623 under-19, 127051). Team record
+headers `[team id - 1][uid][uid][0a][u8 type]`: the first team has the club uid and type 0, youth teams have their own
+uid (type 0x10 for the FM20 under-19), so they are not matched by uid between versions (pending).
+
 ## Club affiliations (end of `game_db.dat`)
 
 One table `[count u32]` + count records:
