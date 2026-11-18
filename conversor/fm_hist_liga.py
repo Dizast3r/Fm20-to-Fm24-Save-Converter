@@ -127,8 +127,11 @@ def main(src20, plantilla, entrada, salida, desp):
             def ht24(t_): return inv.get(tu20.get(t_), 0xffffffff)
             pares = HP.leer_pares(W + '/pares.txt')
             def hp24(p_): return pares[p_ - 1] + 1 if p_ - 1 in pares else 0xffffffff
-            # competitions: league codes + comp_history pairing; awards: award_year_hist pairing
-            c24 = dict(cm)
+            # competitions: unique ids of the competition records, then league codes and comp_history pairing;
+            # awards: award_year_hist pairing
+            import fm_comps_uid as CU
+            c24 = CU.pares(m20, m24); dif = sum(1 for k, v in cm.items() if k in c24 and c24[k] != v)
+            for k, v in cm.items(): c24.setdefault(k, v)
             L20c, _, _, x0 = TT.leer(lc20); L24c, _, _, y0 = TT.leer(lc24)
             for i_, j_ in cpar.items():
                 if L20c[i_] and L24c[j_]: c24.setdefault(struct.unpack_from('<I', dc20, x0 + L20c[i_][0])[0], struct.unpack_from('<I', dc24, y0 + L24c[j_][0])[0])
@@ -138,7 +141,7 @@ def main(src20, plantilla, entrada, salida, desp):
             nl, nd, eh2 = HT.transferir(s20.read('person_record_history_ls.dat'), s20.read('person_record_history_dt.cmt'),
                                         E.read('person_record_history_ls.dat'), E.read('person_record_history_dt.cmt'), hj['hitos'], desp, ht24, hp24, c24, a24)
             nuevos[('', 'person_record_history_ls.dat')] = nl; nuevos[('', 'person_record_history_dt.cmt')] = nd
-            print('hitos: ' + ' | '.join('%s %d' % kv for kv in eh2.items()) + ' | premios mapeados %d' % len(a24))
+            print('hitos: ' + ' | '.join('%s %d' % kv for kv in eh2.items()) + ' | premios mapeados %d | competiciones mapeadas %d (codigos de liga distintos %d)' % (len(a24), len(c24), dif))
     E.escribir(salida, nuevos)
     os.unlink(p20); os.unlink(p24)
     print('historial de liga: bloques FM20 %d | firma %d | anclas %d/%d | comps mapeadas %d' % (len(b20), len(sm), nb, na, len(cm)))

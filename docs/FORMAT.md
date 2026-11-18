@@ -14,11 +14,18 @@ Reverse engineering notes. All integers are little-endian.
 
 ## `game_db.dat`
 
-- Records start with `[id][uid][uid][type]`: the `uid` (unique id) is stable between FM20 and FM24, the ids are not.
+- Records start with `[id][uid][uid][type]`: the `uid` (unique id) is mostly stable between FM20 and FM24, the ids are not.
+  A few clubs changed uid between the two databases (e.g. Celtic 1568 -> 1567, Rennes 883 -> 881), so a uid match is not
+  a proof of identity.
   References from other structures usually store `id + 1`.
   - person: type `0x02` player, `0x01` retired / non-player, `0x10`, `0x13` others.
   - team: `[team-1][uid][uid] 0a [flag]` (first team, B teams and youth teams).
-  - national team: `[team-1][uid][uid] 00 01 01 01 01` at the beginning of the file.
+  - national team: `[team-1][uid][uid] 0b [date]`, in the same area as the clubs (France: FM20 675, FM24 651, uid 768).
+    The records `[id][uid][uid] 00 01 01 01 01` at the beginning of the file are cities (they carry coordinates);
+    their ids overlap the team ids.
+  - competition: `[comp-1][uid][uid] 00 [u8][u8] 01 ...` followed by a run of `06` bytes.
+  - club (FM24): `[club id][uid][uid] 00 [nation]...[len u32][full name][len u32][short name]`; the team record of
+    the first team carries the club uid.
   - stadium: `[stadium-1][uid][uid] 00 [capacity u32]...`, stored consecutively with increasing ids.
 - Player attribute block: 15 positions (1–20) + 54 attributes (1–100, the game shows `round(v/5)`).
 - Dates: `u16` (day of the year in the low 9 bits, time slot in the high 7 bits) + `u16` year; null date `01 00 6c 07`.
@@ -58,8 +65,15 @@ The lists do not say who they belong to:
   Rows: FM20 `[type u32][u32][u8][u8][date][days u16][2 bytes]`, FM24 `[type u16][u32][00][u8][date][days u32]`;
   both versions share the same 114 injury types.
 - `person_record_history` (milestones, FM20 44 / FM24 42 bytes): one list per person; its index follows the injury
-  field: `[date][0a][flag]([u32] if flag = 1)[list u32][05 00]`. The row layouts differ between versions
-  (FM20 starts with the team, FM24 with the date).
+  field: `[date][0a][flag]([u32] if flag = 1)[list u32][05 00]`. Rows:
+  - FM20: `[00][team u32][u8][team2 u32][person u32][comp u16][award u16][date][A..E 5×u32][type u8][flag u8]`
+  - FM24: `[date][A..E][type][flag][00][team u32][person u32][comp u16]` + `[00][team2 u32]`, or `[award u16][00 00 00]`
+    in award rows (a row never has both).
+  - `team` is the player's team, `team2` the other team (opponent, buying or selling club), `person` the player
+    (pid + 1). `A..E` depend on the type (record code and value, transfer fee, position reached, year...).
+  - Types seen: 0/1 competition result (`B` = position), 30–33 awards, 36/37 team of the season, 62 transfer,
+    66/71 club arrivals, 94 joined club, 113 records and firsts, 122/123 debuts.
+  - A team, competition or award the game cannot resolve is shown as `team#2` / `comp#1`.
 
 ## Competitions (`rgman/comp_N.dat`, `fix_man.dat`)
 
