@@ -197,3 +197,17 @@ The loan contract record has the loan end and start dates right after 8 bytes `f
   (`0x0100` seen together with an optional future fee).
 - The contract with the parent club of a loaned-out player has loan data in the 8 bytes before its dates
   (`ffffffff` + 4 bytes) instead of 8 bytes `ff`.
+
+## Team table and squad lists
+
+game_db keeps one record per team, in team id order, from team 1 up (FM24 2031: 46190 records between 88 and
+93 MB; FM20 2031: 127096). A record starts `[team id - 1][uid][uid][0a club team / 0b national team]`. That header
+pattern also matches inside other records (people, competitions, runs of equal bytes), and the first match of a
+team id is often not its record; `fm_equipos.tabla` takes the longest run of matches whose team id grows with the
+position. Teams created during the game past the end of the FM24 table (for example a youth team added in game)
+are kept elsewhere.
+
+The squad list of a club team is `[n u16][n x pid+1]` at 46 bytes from the record start, after
+`[u32 manager pid+1 or ff ff ff ff][byte][u32]`. A national team keeps it after `[byte][ff ff ff ff]`, 95 to 115
+bytes from the start. An empty list (n = 0) is still the list: the record has later id lists that are not the squad.
+Writing a list into a wrong match (first header match, or the first non-empty id list) makes the save fail to load.

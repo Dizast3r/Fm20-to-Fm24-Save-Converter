@@ -7,16 +7,26 @@ for a team that is not one of its reserve or youth teams). Entries that are not 
 import struct, sys, csv, collections, re, os
 import fm_plantillas as PL
 def cabeceras(m, ts):
-    """{team: position of its record [team - 1][uid][uid][0a / 0b]} (numpy, one pass per alignment)"""
-    import numpy as np
-    ks = np.array(sorted(t - 1 for t in ts if 0 < t < 0xffffffff), dtype=np.uint32); out = {}
-    for al in range(4):
-        n = (len(m) - al) // 4 - 3; a = np.frombuffer(m, dtype=np.uint32, count=n + 3, offset=al)
-        ok = np.isin(a[:n], ks) & (a[1:n + 1] == a[2:n + 2]) & (a[1:n + 1] > 0) & (a[1:n + 1] < 0x7fffffff)
-        for i in np.nonzero(ok)[0].tolist():
-            p = al + 4 * i
-            if m[p + 12] in (0x0a, 0x0b): out.setdefault(int(a[i]) + 1, p)
-    return out
+    """{team: position of its record} for the teams of ts in the team table (fm_equipos.tabla). The first match of
+    the header pattern is not reliable: AY took records of other kinds for 40 teams and wrote squad lists into them."""
+    import fm_equipos as EQ
+    t = EQ.tabla(m); return {k: t[k] for k in ts if k in t}
+LISTA = re.compile(rb'[\x00-\x0f]\xff\xff\xff\xff', re.S)
+def ids_validos(m, q):
+    n = struct.unpack_from('<H', m, q)[0]
+    if n > 300: return None
+    ids = struct.unpack_from('<%dI' % n, m, q + 2)
+    return (q, n, ids) if len(set(ids)) == n and all(0 < i < 3000000 for i in ids) else None
+def lista(m, p):
+    """(position of n, n, ids) of the squad list of the team record at p: [n u16][n x pid+1], 46 bytes after the
+    record start in a club team (0a: every record of FM20 and FM24 2031), after [byte][ff ff ff ff] 95 to 115 bytes
+    after it in a national team (0b). An empty list (n = 0) is a list: fm_plantillas.squad_of skips it and takes a
+    later id list of the record, which is not the squad."""
+    if m[p + 12] == 0x0a: return ids_validos(m, p + 46)
+    for x in LISTA.finditer(m, p + 80, p + 120):
+        r = ids_validos(m, x.end())
+        if r: return r
+    return None
 def paso(src20, entrada, salida, w):
     import time, fm_export as X, fmcontenedor as C
     t0 = time.time()
@@ -78,15 +88,15 @@ def paso(src20, entrada, salida, w):
     lista20 = {}
     for b, a in inv.items():
         if a in c20:
-            sq = PL.squad_of(m20, {'pos': c20[a]})
-            if sq: lista20[b] = [i - 1 for i in sq[2]]
+            sq = lista(m20, c20[a])
+            if sq is not None: lista20[b] = [i - 1 for i in sq[2]]
     print('listas FM20 emparejadas %d | %.0fs' % (len(lista20), time.time() - t0), flush=True)
     cabs = cabeceras(m, objetivo)
     for t in objetivo:
         c = cabs.get(t)
         if c is None: est['equipo no localizado'] += 1; continue
-        sq = PL.squad_of(m, {'pos': c})
-        if not sq: est['sin lista'] += 1; continue
+        sq = lista(m, c)
+        if sq is None: est['sin lista'] += 1; continue
         q, n, ids = sq
         antes = [i - 1 for i in ids]
         if t in lista20:

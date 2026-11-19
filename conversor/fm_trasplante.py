@@ -366,8 +366,10 @@ def main():
             for t in news:
                 if t not in olds: add.setdefault(t, []).append(person)
         nl = 0; byq = {}
+        import fm_equipos as EQ2, fm_plantillas_rehacer as PR   # team table and squad list position (the first header
+        tab = EQ2.tabla(dm)                                      # match and the first id list are not reliable)
         for t in set(rem) | set(add):
-            r = PL.squad_of(dm, teams[t])
+            r = PR.lista(dm, tab[t]) if t in tab else None
             if not r: fail += 1; continue
             g = byq.setdefault(r[0], [r[1], r[2], set(), []]); g[2] |= rem.get(t, set()); g[3] += add.get(t, [])
         for q, (n, ids0, rm, ad) in byq.items():
