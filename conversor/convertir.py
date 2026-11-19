@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """convertir.py - conversor de partidas FM20 -> FM24 (EXPERIMENTAL). Solo necesita la partida de FM20 y una plantilla de FM24.
 Uso:  convertir.py PASO partida_fm20.fm plantilla_fm24.fm salida.fm [carpeta_de_trabajo]
-PASO: exportar20 | exportar24 | planificar | mundo | jugadores | relaciones | plazos | afiliados | clasificacion | manager | historial | carreras | temporada | todo
+PASO: exportar20 | exportar24 | planificar | mundo | jugadores | relaciones | plazos | afiliados | plantillas | clasificacion | manager | historial | carreras | temporada | todo
 Cada paso deja sus resultados en la carpeta de trabajo; 'todo' los ejecuta en orden.
 Nunca modifica la partida de FM20 ni la plantilla."""
 import sys, os, subprocess, struct, csv, json, collections, datetime, mmap
@@ -101,6 +101,8 @@ def planificar(src, base, w):
     open(f'{w}/pares.txt', 'w').write(' '.join(f"{a['id_jugador']}:{h['id_jugador']}" for a, h in pares) + ' ' + ' '.join(trip) + ' ' + ' '.join(ces))
     conv_teams = {int(h['id_club']) for _, h in pares} | {int(t.split(':')[2]) for t in trip}
     open(f'{w}/equipos_convertidos.txt', 'w').write(' '.join(str(t) for t in sorted(conv_teams)))
+    import pickle, fm_hist_comp as HC   # rows of FM20's last finished season(s) kept inside its game_db (for 'historial')
+    pickle.dump(HC.filas_db(sm, 20, range(2020, 2040)), open(f'{w}/ult20.pkl', 'wb'))
     f20, f24 = fecha_partida(src), fecha_partida(base)
     anios = -round((f20 - f24).days / 365.25)
     json.dump(dict(fecha_fm20=str(f20), fecha_plantilla=str(f24), desplazar_anios=anios), open(f'{w}/desfase.json', 'w'))
@@ -109,7 +111,7 @@ def planificar(src, base, w):
 def main():
     paso, src, base, out = sys.argv[1], *map(os.path.abspath, sys.argv[2:5])
     w = os.path.abspath(sys.argv[5] if len(sys.argv) > 5 else 'trabajo'); os.makedirs(w, exist_ok=True)
-    pasos = ['exportar20', 'exportar24', 'planificar', 'mundo', 'jugadores', 'relaciones', 'plazos', 'afiliados', 'clasificacion', 'manager', 'historial', 'carreras', 'temporada'] if paso == 'todo' else [paso]
+    pasos = ['exportar20', 'exportar24', 'planificar', 'mundo', 'jugadores', 'relaciones', 'plazos', 'afiliados', 'plantillas', 'clasificacion', 'manager', 'historial', 'carreras', 'temporada'] if paso == 'todo' else [paso]
     sal_jug = f'{w}/jugadores.fm' if 'historial' in pasos else out
     sal_his = f'{w}/historial.fm' if 'temporada' in pasos else out
     for p in pasos:
@@ -133,6 +135,9 @@ def main():
             des = json.load(open(f'{w}/desfase.json'))
             py('fm_afiliados.py', src, f'{w}/jugadores.fm', f'{w}/afiliados.tmp.fm', str(des['desplazar_anios']))
             os.replace(f'{w}/afiliados.tmp.fm', f'{w}/jugadores.fm')
+        elif p == 'plantillas':   # squad lists rebuilt from the players (fm_plantillas_rehacer.py), rewrites jugadores.fm
+            py('fm_plantillas_rehacer.py', src, f'{w}/jugadores.fm', f'{w}/plantillas.tmp.fm', w)
+            os.replace(f'{w}/plantillas.tmp.fm', f'{w}/jugadores.fm')
         elif p == 'clasificacion':   # final league tables in the FM20 order (fm_clasificacion.py), rewrites jugadores.fm
             py('fm_clasificacion.py', src, f'{w}/jugadores.fm', f'{w}/clasificacion.tmp.fm')
             os.replace(f'{w}/clasificacion.tmp.fm', f'{w}/jugadores.fm')

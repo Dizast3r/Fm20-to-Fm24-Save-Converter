@@ -6,7 +6,7 @@ Identificacion: FM20 bloque <-> FM24 bloque por filas historicas iguales (<=2018
 FM20 bloque sin firma -> uid por orden entre anclas. Las filas se sobrescriben en su sitio (año destino = año FM20 + desplazamiento);
 las temporadas que no existen en FM24 se añaden al final del _dt y se insertan en la lista del club en orden de año (HIST_ANADIR=0 lo desactiva)."""
 import sys, os, struct, mmap, collections, tempfile, json
-import fmsave, fmcontenedor as C, fm_historial as H, fm_hist_orden as O, fm_ligas as LG
+import fmsave, pickle, fmcontenedor as C, fm_historial as H, fm_hist_orden as O, fm_ligas as LG
 Y = lambda x: struct.unpack_from('<H', x, 0)[0]
 CO = lambda x: struct.unpack_from('<H', x, 2)[0]
 def firma(b20, b24, hasta=2018):
@@ -85,7 +85,7 @@ def main(src20, plantilla, entrada, salida, desp):
     s20 = fmsave.Save(src20)
     ls20 = s20.read('tc_league_history_ls.dat'); dt20 = s20.read('tc_league_history_dt.cmt')
     b20 = H.leer(ls20, dt20)[0]
-    P = C.Contenedor(plantilla)
+    P = fmsave.Save(plantilla)   # read only: memory-mapped, the Contenedor would load the whole file
     ls24 = P.read('tc_league_history_ls.dat'); dt24p = P.read('tc_league_history_dt.cmt')
     import fm_tad as T
     off24, cab24, cola24, d0 = T.leer(ls24)
@@ -93,9 +93,10 @@ def main(src20, plantilla, entrada, salida, desp):
     def gdb(sv):   # decompressed once to the cache and memory-mapped (a long template's game_db does not fit twice in memory)
         p = sv.cache_path('game_db.dat'); f = open(p, 'rb'); return mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ), p
     m20, p20 = gdb(s20); m24, p24 = gdb(fmsave.Save(plantilla))
-    ts20 = LG.team_zone(m20); ts24 = LG.team_zone(m24)
-    import fm_uids as U   # clubs whose uid changed between FM20 and FM24
-    tr_uid, est_uid = U.traduccion(m20, m24); U.traducir_zona(ts20, tr_uid)
+    import fm_cache as FC_, fm_uids as U   # clubs whose uid changed between FM20 and FM24
+    R_ = (src20, plantilla)
+    ts20 = FC_.memo('team_zone20', R_, lambda: LG.team_zone(m20)); ts24 = FC_.memo('team_zone24', R_, lambda: LG.team_zone(m24))
+    tr_uid, est_uid = FC_.memo('traduccion', R_, lambda: U.traduccion(m20, m24)); U.traducir_zona(ts20, tr_uid)
     print('clubes FM20->FM24: ' + ' | '.join('%s %d' % kv for kv in est_uid.items()))
     fin20 = max(Y(x) for b in b20 for x in b); fin24 = max(Y(x) for b in b24 for x in b if Y(x) < 2100)
     sm = firma(b20, b24); cm = mapa_comps(b20, b24, sm)
@@ -137,9 +138,13 @@ def main(src20, plantilla, entrada, salida, desp):
     lc24 = P.read('comp_history_ls.dat', 'rgman'); dc24 = P.read('comp_history_dt.cmt')
     assert E.read('comp_history_ls.dat', 'rgman') == lc24
     import fm_estadios as ES
-    tu20 = {t: U.aplicar(tr_uid, u) for t, u in U.mapa(m20).items()}; tu24 = U.mapa(m24); es20 = ES.mapa(m20); es24 = ES.mapa(m24)
+    tu20 = {t: U.aplicar(tr_uid, u) for t, u in FC_.memo('umapa20', R_, lambda: U.mapa(m20)).items()}; tu24 = FC_.memo('umapa24', R_, lambda: U.mapa(m24))
+    es20 = FC_.memo('estadios20', R_, lambda: ES.mapa(m20)); es24 = FC_.memo('estadios24', R_, lambda: ES.mapa(m24))
     lc20 = s20.read('comp_history_ls.dat', 'rgman'); dc20 = s20.read('comp_history_dt.cmt')
-    ult20 = HC.filas_db(m20, 20, range(2020, 2040))   # FM20's last finished season(s), still inside its game_db
+    pu = os.environ.get('TRABAJO', 'trabajo') + '/ult20.pkl'   # FM20's last finished season(s), still inside its game_db
+    import pickle as pk_
+    if os.path.exists(pu): ult20 = pk_.load(open(pu, 'rb'))   # (computed by the 'planificar' step: time)
+    else: ult20 = HC.filas_db(m20, 20, range(2020, 2040))
     nls, ndt, ec, cpar = HC.transferir(lc20, dc20, lc24, dc24, tu20, tu24, desp, e20=es20, e24=es24, extra20=ult20)
     import pickle
     pickle.dump(dict(tu20=tu20, tu24=tu24, es20=es20, es24=es24, cpar=cpar, cm=cm), open(os.environ.get('TRABAJO', 'trabajo') + '/hist_mapas.pkl', 'wb'))
@@ -181,7 +186,7 @@ def main(src20, plantilla, entrada, salida, desp):
             # competitions: unique ids of the competition records, then league codes and comp_history pairing;
             # awards: award_year_hist pairing
             import fm_comps_uid as CU
-            c24 = CU.pares(m20, m24); dif = sum(1 for k, v in cm.items() if k in c24 and c24[k] != v)
+            c24 = dict(FC_.memo('comps_uid', R_, lambda: CU.pares(m20, m24))); dif = sum(1 for k, v in cm.items() if k in c24 and c24[k] != v)
             for k, v in cm.items(): c24.setdefault(k, v)
             L20c, _, _, x0 = TT.leer(lc20); L24c, _, _, y0 = TT.leer(lc24)
             for i_, j_ in cpar.items():

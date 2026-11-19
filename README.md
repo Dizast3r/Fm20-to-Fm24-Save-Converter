@@ -30,6 +30,8 @@ python conversor/convertir.py STEP fm20_save.fm fm24_template.fm output.fm [work
 | `relaciones` | club legends / icons / favoured personnel: every person of the FM20 lists is found in FM24 (converted player, same name and birth date, same unique id, or name-only record) |
 | `plazos` | transfer fees still being paid in installments (club finances, transfer debt): the FM20 list replaces the template one |
 | `afiliados` | club affiliations (B teams, feeder clubs, loan partners) with their dates, options and annual fee |
+| `plantillas` | squad lists of every team rebuilt from the converted players: first team, B team and youth teams get the FM20 lists (loaned-out players included), template players left in a team are kept at the end |
+| `clasificacion` | final league tables of the last season in the FM20 order (champion, places, European spots) |
 | `manager` | the human manager: name, birth date, nationality, birthplace, appearance and personality of the FM20 manager over the template one |
 | `historial` | career history of every player, league history of every club, winners of every competition (honours, with the venue of each final) and yearly awards |
 | `carreras` | career history and injury history of every player (separate process: a long template does not fit in memory with the rest) |
@@ -40,7 +42,8 @@ The work folder (`trabajo/` by default) keeps the intermediate results of every 
 **Template.** Any FM24 save can be the template. With a template at the same date as the FM20 save (for example a
 FM24 game played on holiday until 16/6/2031) no date is shifted; with the original 2023 database every date moves
 8 years back. A long template is big (game_db 574 MB): every step is kept under 3 minutes and ~3.5 GB of memory, the
-decompressed game_db files are memory-mapped from `cache/`.
+decompressed game_db files are memory-mapped from `cache/`; slow scans (team, stadium, club and competition unique-id maps) are kept there too
+(`fm_cache.py`), so a step that runs again does not repeat them.
 
 ## Status
 
