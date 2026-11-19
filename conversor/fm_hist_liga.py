@@ -139,7 +139,8 @@ def main(src20, plantilla, entrada, salida, desp):
     import fm_estadios as ES
     tu20 = {t: U.aplicar(tr_uid, u) for t, u in U.mapa(m20).items()}; tu24 = U.mapa(m24); es20 = ES.mapa(m20); es24 = ES.mapa(m24)
     lc20 = s20.read('comp_history_ls.dat', 'rgman'); dc20 = s20.read('comp_history_dt.cmt')
-    nls, ndt, ec, cpar = HC.transferir(lc20, dc20, lc24, dc24, tu20, tu24, desp, e20=es20, e24=es24)
+    ult20 = HC.filas_db(m20, 20, range(2020, 2040))   # FM20's last finished season(s), still inside its game_db
+    nls, ndt, ec, cpar = HC.transferir(lc20, dc20, lc24, dc24, tu20, tu24, desp, e20=es20, e24=es24, extra20=ult20)
     import pickle
     pickle.dump(dict(tu20=tu20, tu24=tu24, es20=es20, es24=es24, cpar=cpar, cm=cm), open(os.environ.get('TRABAJO', 'trabajo') + '/hist_mapas.pkl', 'wb'))
     nuevos[('', 'comp_history_dt.cmt')] = ndt

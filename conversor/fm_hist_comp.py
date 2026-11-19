@@ -6,7 +6,7 @@ import struct, collections
 import fm_tad as T
 Y = lambda r: struct.unpack_from('<H', r, 4)[0]
 def equipos(r): return list(struct.unpack_from('<9I', r, 8))
-def transferir(ls20, dt20, ls24, dt24, u20, u24, desp, hasta=2018, desde=2020, e20=None, e24=None):
+def transferir(ls20, dt20, ls24, dt24, u20, u24, desp, hasta=2018, desde=2020, e20=None, e24=None, extra20=None):
     """u20 / u24: {team id: uid} (fm_uids.mapa); e20 / e24: {stadium id: uid} (fm_estadios.mapa).
     Slots: 0-3 teams (1st, 2nd, 3rd, 4th), 4-6 other data (left empty), 7 final venue (stadium), 8 copied as is."""
     e20 = e20 or {}; e24 = e24 or {}
@@ -17,6 +17,13 @@ def transferir(ls20, dt20, ls24, dt24, u20, u24, desp, hasta=2018, desde=2020, e
     t24 = {}
     for t, u in sorted(u24.items()): t24.setdefault(u, t)
     f20 = [[bytes(dt20[a0 + o:a0 + o + R20]) for o in l] for l in L20]
+    if extra20:   # rows of the last finished season(s) that FM20 still keeps inside game_db (filas_db)
+        porcomp = {}
+        for i, rows in enumerate(f20):
+            if rows: porcomp.setdefault(struct.unpack_from('<I', rows[0], 0)[0], i)
+        for (c, y), (_, r) in sorted(extra20.items(), key=lambda kv: kv[0][1]):
+            i = porcomp.get(c)
+            if i is not None and all(Y(x) != y for x in f20[i]): f20[i].append(bytes(r))
     f24 = [[bytes(dt24[b0 + o:b0 + o + R24]) for o in l] for l in L24]
     # indice FM24: (año, uid campeon) -> listas
     idx = collections.defaultdict(set); comp24 = {}

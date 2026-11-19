@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """convertir.py - conversor de partidas FM20 -> FM24 (EXPERIMENTAL). Solo necesita la partida de FM20 y una plantilla de FM24.
 Uso:  convertir.py PASO partida_fm20.fm plantilla_fm24.fm salida.fm [carpeta_de_trabajo]
-PASO: exportar20 | exportar24 | planificar | mundo | jugadores | relaciones | plazos | afiliados | manager | historial | carreras | temporada | todo
+PASO: exportar20 | exportar24 | planificar | mundo | jugadores | relaciones | plazos | afiliados | clasificacion | manager | historial | carreras | temporada | todo
 Cada paso deja sus resultados en la carpeta de trabajo; 'todo' los ejecuta en orden.
 Nunca modifica la partida de FM20 ni la plantilla."""
 import sys, os, subprocess, struct, csv, json, collections, datetime, mmap
@@ -30,8 +30,10 @@ def planificar(src, base, w):
     from fmsave import Save
     sm = Save(src).read('game_db.dat'); bm = Save(base).read('game_db.dat')
     ts = LG.team_zone(sm); tb = LG.team_zone(bm)
-    import fm_uids as U   # clubs whose uid changed between FM20 and FM24
-    U.traducir_zona(ts, U.traduccion(sm, bm)[0])
+    import fm_uids as U, fm_equipos_club as EC   # clubs whose uid changed between FM20 and FM24
+    tr = U.traduccion(sm, bm)[0]
+    sec = EC.mapa_secundarios(sm, bm, ts, tb, tr)   # under-19 and other teams of a club, by their place in the club
+    U.traducir_zona(ts, tr)
     u24 = {}
     for t, v in tb.items(): u24.setdefault(v['uid'], t)
     cols = ('id_jugador', 'id_club', 'id_club_contrato', 'pos_bloque', 'pos_nombre', 'POR', 'CA')   # only what is used: the CSVs of a long template are huge
@@ -48,7 +50,7 @@ def planificar(src, base, w):
         if x['id_club']: porB[int(x['id_club'])].append(x)
     # cesiones: cada cesion de FM20 va sobre un cedido de FM24 (preferiblemente en el mismo club de destino)
     import fm_cedidos as CD
-    destino0 = lambda t: u24.get(ts[t]['uid']) if t in ts else None
+    destino0 = lambda t: u24.get(ts[t]['uid']) if t in ts else sec.get(t)
     import fm_plantillas as PL0
     conlista0 = {t for t, v in tb.items() if PL0.squad_of(bm, v)}
     huespedes = collections.defaultdict(list); todos_h = []
@@ -68,14 +70,18 @@ def planificar(src, base, w):
     porS = collections.defaultdict(list)
     for x in S:
         if x['id_club'] and x['id_jugador'] not in es_ces: porS[int(x['id_club'])].append(x)
-    destino = lambda t: u24.get(ts[t]['uid']) if t in ts else None
+    destino = lambda t: u24.get(ts[t]['uid']) if t in ts else sec.get(t)
     pares = []; usados = set(); sobran = []; vistos = set()
     for t, pl in porS.items():
         d = destino(t)
         if d is None or d not in porB or d in vistos:
             continue
         vistos.add(d)
-        hh = [x for x in porB[d] if ncont(x) == 1]
+        # hosts: players of that team with one contract; B-team players have two records (contract with the parent
+        # club + registration), accepted when the contract is with the club most of the team's players belong to
+        cc = collections.Counter(x['id_club_contrato'] for x in porB[d]); padre = cc.most_common(1)[0][0] if cc else None
+        if padre == str(d) or (padre and cc[padre] <= len(porB[d]) / 2): padre = None
+        hh = [x for x in porB[d] if ncont(x) == 1 or (padre and x['id_club_contrato'] == padre and ncont(x) == 2)]
         sg = sorted([x for x in pl if gk(x)], key=lambda x: -int(x['CA'])); so = sorted([x for x in pl if not gk(x)], key=lambda x: -int(x['CA']))
         hg = sorted([x for x in hh if gk(x)], key=lambda x: -int(x['CA'])); ho = sorted([x for x in hh if not gk(x)], key=lambda x: -int(x['CA']))
         ng = min(len(sg), len(hg), 3); p = list(zip(sg[:ng], hg[:ng])) + list(zip(so, ho + hg[ng:]))
@@ -103,7 +109,7 @@ def planificar(src, base, w):
 def main():
     paso, src, base, out = sys.argv[1], *map(os.path.abspath, sys.argv[2:5])
     w = os.path.abspath(sys.argv[5] if len(sys.argv) > 5 else 'trabajo'); os.makedirs(w, exist_ok=True)
-    pasos = ['exportar20', 'exportar24', 'planificar', 'mundo', 'jugadores', 'relaciones', 'plazos', 'afiliados', 'manager', 'historial', 'carreras', 'temporada'] if paso == 'todo' else [paso]
+    pasos = ['exportar20', 'exportar24', 'planificar', 'mundo', 'jugadores', 'relaciones', 'plazos', 'afiliados', 'clasificacion', 'manager', 'historial', 'carreras', 'temporada'] if paso == 'todo' else [paso]
     sal_jug = f'{w}/jugadores.fm' if 'historial' in pasos else out
     sal_his = f'{w}/historial.fm' if 'temporada' in pasos else out
     for p in pasos:
@@ -127,6 +133,9 @@ def main():
             des = json.load(open(f'{w}/desfase.json'))
             py('fm_afiliados.py', src, f'{w}/jugadores.fm', f'{w}/afiliados.tmp.fm', str(des['desplazar_anios']))
             os.replace(f'{w}/afiliados.tmp.fm', f'{w}/jugadores.fm')
+        elif p == 'clasificacion':   # final league tables in the FM20 order (fm_clasificacion.py), rewrites jugadores.fm
+            py('fm_clasificacion.py', src, f'{w}/jugadores.fm', f'{w}/clasificacion.tmp.fm')
+            os.replace(f'{w}/clasificacion.tmp.fm', f'{w}/jugadores.fm')
         elif p == 'manager':   # the human manager (fm_manager.py), rewrites jugadores.fm in place
             des = json.load(open(f'{w}/desfase.json'))
             py('fm_manager.py', src, f'{w}/jugadores.fm', f'{w}/manager.tmp.fm', str(des['desplazar_anios']))

@@ -275,9 +275,9 @@ def main():
             putdate(D['c'] + 69 + Ld['joined'], fs['date2'])
             nrec = 0
             for kd in dest_ks:
-                struct.pack_into('<I', dm, kd + Ld['wage'], wage)
                 fd = K.fields(dm, kd, bsv.version)
-                if not fd: continue
+                if not fd: continue   # not a contract (e.g. the registration of a B-team player): left as it is
+                struct.pack_into('<I', dm, kd + Ld['wage'], wage)
                 nrec += 1
                 putdate(fd['start'], fs['start']); putdate(fd['end'], fs['end']); putdate(fd['date2'], fs['date2'])
                 clause_edits.append((fd['count'], fd['n'], bytes([len(ents)]) + b''.join(ents)))
