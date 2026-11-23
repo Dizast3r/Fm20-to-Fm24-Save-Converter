@@ -111,7 +111,7 @@ def planificar(src, base, w):
 def main():
     paso, src, base, out = sys.argv[1], *map(os.path.abspath, sys.argv[2:5])
     w = os.path.abspath(sys.argv[5] if len(sys.argv) > 5 else 'trabajo'); os.makedirs(w, exist_ok=True)
-    pasos = ['exportar20', 'exportar24', 'planificar', 'mundo', 'jugadores', 'relaciones', 'plazos', 'afiliados', 'plantillas', 'clasificacion', 'manager', 'historial', 'carreras', 'temporada'] if paso == 'todo' else [paso]
+    pasos = ['exportar20', 'exportar24', 'planificar', 'mundo', 'jugadores', 'relaciones', 'plazos', 'afiliados', 'plantillas', 'clasificacion', 'manager', 'historial', 'vivas', 'carreras', 'temporada'] if paso == 'todo' else [paso]
     sal_jug = f'{w}/jugadores.fm' if 'historial' in pasos else out
     sal_his = f'{w}/historial.fm' if 'temporada' in pasos else out
     for p in pasos:
@@ -148,6 +148,10 @@ def main():
         elif p == 'historial':
             des = json.load(open(f'{w}/desfase.json'))
             py('fm_hist_liga.py', src, base, f'{w}/jugadores.fm', sal_his, str(des['desplazar_anios']), env=dict(TRABAJO=w, HISTORIAL_PARTE='liga'))
+        elif p == 'vivas':   # season in progress (player_stats.dat) of the converted players, rewrites historial.fm
+            des = json.load(open(f'{w}/desfase.json'))
+            py('fm_hist_liga.py', src, base, f'{w}/historial.fm', f'{w}/vivas.tmp.fm', str(des['desplazar_anios']), env=dict(TRABAJO=w, HISTORIAL_PARTE='vivas'))
+            os.replace(f'{w}/vivas.tmp.fm', f'{w}/historial.fm')
         elif p == 'carreras':   # player career history and injuries (separate process: memory), rewrites historial.fm
             des = json.load(open(f'{w}/desfase.json'))
             py('fm_hist_liga.py', src, base, f'{w}/historial.fm', f'{w}/carreras.tmp.fm', str(des['desplazar_anios']), env=dict(TRABAJO=w, HISTORIAL_PARTE='jugadores'))

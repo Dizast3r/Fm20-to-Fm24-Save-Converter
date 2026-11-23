@@ -17,7 +17,9 @@ def convertir(r20, t24, cm, desp):
     struct.pack_into('<H', r, 11, y + desp if 1900 < y < 2100 else y)
     r[COMUN[0]:COMUN[1]] = r20[COMUN[0]:COMUN[1]]
     return bytes(r)
-def transferir(ls20, dt20, ls24, dt24, mapa, u20, u24, cm, desp, ps20=None):
+def transferir(ls20, dt20, ls24, dt24, mapa, u20, u24, cm, desp, ps20=None, vivos=()):
+    """vivos: FM20 players whose season in progress went to the FM24 player_stats.dat (fm_hist_jugadores.vivas);
+    the others get it as history rows"""
     L20, _, _, a0 = T.leer(ls20); L24, cab, cola, b0 = T.leer(ls24)
     cur = actuales(ps20, [m[2] for m in mapa if len(m) > 2]) if ps20 else {}
     # season in progress = the most common last season of the lists + 1 (a few lists already have next season rows)
@@ -35,7 +37,7 @@ def transferir(ls20, dt20, ls24, dt24, mapa, u20, u24, cm, desp, ps20=None):
         if v >= len(L20): est['lista FM20 inexistente'] += 1; continue
         offs = []
         r20 = [dt20[a0 + o:a0 + o + R20] for o in L20[v]]
-        if len(m_) > 2 and m_[2] in cur:
+        if len(m_) > 2 and m_[2] in cur and m_[2] not in vivos:
             ult = max(r20, key=lambda r: struct.unpack_from('<H', r, 11)[0]) if r20 else None
             comp = struct.unpack_from('<H', ult, 5)[0] if ult else 0xffff
             nuevas = filas_actuales(ps20, cur[m_[2]], ycur, comp)
@@ -43,7 +45,9 @@ def transferir(ls20, dt20, ls24, dt24, mapa, u20, u24, cm, desp, ps20=None):
             r20 = [r for r in r20 if struct.unpack_from('<H', r, 11)[0] < ycur or struct.unpack_from('<I', r, 1)[0] != club] + nuevas
             est['temporada en curso'] += 1 if nuevas else 0
         filas = [convertir(r, t24, cm, desp) for r in r20]
-        filas.sort(key=lambda r: struct.unpack_from('<H', r, 11)[0])   # FM24 keeps every list in season order
+        # FM20 order kept: rows are in the order of the moves, not of the seasons (a loan club row of the next season
+        # comes before the return to the parent club), and the transfer / loan shown on a row is the fee of the row
+        # before it; sorting by season moved those rows and the fees (Espanyol "loan" rows, a loan fee on Inter)
         for r in filas:
             offs.append(base + len(extra)); extra += r
         while len(listas) <= t: listas.append([])
@@ -64,7 +68,7 @@ def actuales(ps, pids):
         q = np.searchsorted(want, x); q[q >= len(want)] = 0
         for i in np.nonzero((want[q] == x))[0]:
             k = al + 4 * int(i)
-            if ps[k] == 1: out.setdefault(int(x[i]) - 1, k)
+            if ps[k] == 1 and ps[k + 21] == 1 and ps[k + 22] in (1, 6): out.setdefault(int(x[i]) - 1, k)   # [01][pid+1]..[01 01/06]
     return out
 def filas_actuales(ps, k, year, comp):
     club = struct.unpack_from('<I', ps, k + 5)[0]; filas = []
@@ -81,3 +85,31 @@ def filas_actuales(ps, k, year, comp):
         r[40:96] = ps[s + 25:s + 81]
         filas.append(bytes(r))
     return filas
+
+# FM24 player_stats.dat: same records, blocks of 137 bytes after [01 06] (FM20: 81 after [01 01]); the first 67 bytes
+# of a block have the FM20 layout, the rest are FM24 statistics. Block order: friendlies, league, cup, continental,
+# international, club total, then other totals; a record may carry more data after its blocks (form, ratings).
+def bloques(ps, k, mk, paso):
+    out = []; p = k + 21
+    while ps[p:p + 2] == mk and len(out) < 8: out.append(p + 2); p += paso
+    return out
+def vivas(ps20, ps24, pares, t24):
+    """the season in progress of each converted player: the FM20 player_stats record over the one of his FM24 host
+    (the host's own season showed as a second row of his current club). Returns (new player_stats.dat, FM20 pids done)"""
+    c20 = actuales(ps20, [a for a, b in pares]); c24 = actuales(ps24, [b for a, b in pares])
+    out = bytearray(ps24); hechos = set(); est = collections.Counter()
+    for a, b in pares:
+        k = c24.get(b)
+        if k is None: est['sin registro FM24'] += 1; continue
+        b24 = bloques(out, k, b'\x01\x06', 139)
+        if not b24: est['registro FM24 no reconocido'] += 1; continue
+        k20 = c20.get(a); b20 = bloques(ps20, k20, b'\x01\x01', 83) if k20 is not None else []
+        for i, q in enumerate(b24):
+            out[q:q + 137] = bytes(137)
+            if i < len(b20): out[q:q + 67] = ps20[b20[i]:b20[i] + 67]
+        if k20 is not None:
+            club = t24(struct.unpack_from('<I', ps20, k20 + 5)[0])
+            if club != 0xffffffff: struct.pack_into('<I', out, k + 5, club)
+            hechos.add(a); est['temporada FM20'] += 1
+        else: est['temporada vaciada'] += 1
+    return bytes(out), hechos, est

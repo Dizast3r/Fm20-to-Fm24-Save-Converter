@@ -20,7 +20,7 @@ def tables(m):
     for a, b, t in tabs:
         if merged and a - merged[-1][1] < 256 and min(t) > max(merged[-1][2]): merged[-1][1] = b; merged[-1][2].update(t)
         else: merged.append([a, b, dict(t)])
-    return merged[0][2], merged[1][2], (merged[2][2] if len(merged) > 2 else {}), max(b for a, b, t in merged), [(t[0], t[1]) for t in merged[:2]]
+    return merged[0][2], merged[1][2], (merged[2][2] if len(merged) > 2 else {}), max(b for a, b, t in merged), [(t[0], t[1]) for t in merged[:3]]
 
 def players(m, L, FN, SN, CN, start, want):
     """localiza por id de jugador: devuelve {pid: dict(c, o, dpos, n)}"""
@@ -94,7 +94,7 @@ def main():
     Ls, Ld = X.LAY[ssv.version], X.LAY[bsv.version]
     sm = ssv.read('game_db.dat'); dm = bytearray(bsv.read('game_db.dat'))
     sFN, sSN, sCN, sstart, _ = tables(sm); dmb = bytes(dm); dFN, dSN, dCN, dstart, dpos = tables(dmb)
-    addnames = os.environ.get('ANADIR_NOMBRES', '0') == '1'; pending = {0: [], 1: []}
+    addnames = os.environ.get('ANADIR_NOMBRES', '0') == '1'; pending = {0: [], 1: [], 2: []}
     rFN = {}; rSN = {}
     for i, s in dFN.items(): rFN.setdefault(s, i)
     for i, s in dSN.items(): rSN.setdefault(s, i)
@@ -214,13 +214,18 @@ def main():
             if how: notes.append(f'"{text}": {how}')
         # tercer identificador: nombre con el que el juego muestra al jugador
         shown = sn; dcn = 0xffffffff
+        # The FM20 field holds the first name id when the common name is the first name (Brazilian "Marcos"), the
+        # surname id when it is the surname; FM24 always reads it in the common name table (the FM24 first name id
+        # there is another name: Marcos showed as "Shen Guowei"). The text is looked up in that table, or added to it.
         if scn_id != 0xffffffff:
-            if scn_id == sfn_id and 0 in did: dcn = did[0]; shown = fn
-            elif scn_id == ssn_id and 1 in did: dcn = did[1]
-            else:
-                ctext = sCN.get(scn_id, ''); idv, how = lookup(ctext, rCN, nCN)
-                if idv is not None: dcn = idv; shown = ctext
-                elif ctext: notes.append(f'apodo "{ctext}": no existe')
+            ctext = fn if scn_id == sfn_id else sn if scn_id == ssn_id else sCN.get(scn_id, '')
+            if ctext:
+                idv, how = lookup(ctext, rCN, nCN)
+                if how in ('abreviado', 'sin acentos'): idv = None   # a common name is shown as written
+                if idv is None:
+                    idv = rCN[ctext] = len(dCN) + len(pending[2]); pending[2].append(ctext); how = 'apodo anadido'
+                dcn = idv; shown = ctext
+                if how: notes.append(f'apodo "{ctext}": {how}')
         struct.pack_into('<I', dm, D['o'] + Ld['cn'], dcn)
         # nacimiento (desplazado) y nacion
         d, y = struct.unpack_from('<HH', sm, S['dpos']); d &= 0x1ff; y += shift
@@ -317,13 +322,13 @@ def main():
     print('internacionales (con partidos con su seleccion):', stats.get('internacional', 0))
     print('trasplantados', stats['ok'], '| contrato de origen no localizado', stats['sin_contrato'], '| nombres que no existen en la base', len(stats['sin_nombre']), stats['sin_nombre'][:40])
     # nombres nuevos: se anaden al final de su tabla (primero la de apellidos, que esta mas atras) y se actualiza el contador
-    for which in (1, 0):
+    for which in (2, 1, 0):
         if not pending[which]: continue
-        ta, tb = dpos[which]; tab = (dFN, dSN)[which]; base_n = len(tab)
+        ta, tb = dpos[which]; tab = (dFN, dSN, dCN)[which]; base_n = len(tab)
         assert struct.unpack_from('<I', dm, ta - 4)[0] == base_n
         blob = b''.join(struct.pack('<II', base_n + i, len(t.encode('utf8'))) + t.encode('utf8') for i, t in enumerate(pending[which]))
         edits.append((tb, 0, blob, 'tabla_nombres')); struct.pack_into('<I', dm, ta - 4, base_n + len(pending[which]))
-        print('tabla', ('nombres', 'apellidos')[which], ': anadidas', len(pending[which]), 'entradas', pending[which][:12])
+        print('tabla', ('nombres', 'apellidos', 'apodos')[which], ': anadidas', len(pending[which]), 'entradas', pending[which][:12])
     # economia: saldo (i32) y lista de patrocinios de cada club, emparejando clubes por su id unico
     if os.environ.get('ECONOMIA') == '1':
         import fm_patrocinios as PT, fm_ligas as LG, fm_clubes as CB

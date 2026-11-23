@@ -34,6 +34,7 @@ python conversor/convertir.py STEP fm20_save.fm fm24_template.fm output.fm [work
 | `clasificacion` | final league tables of the last season in the FM20 order (champion, places, European spots) |
 | `manager` | the human manager: name, birth date, nationality, birthplace, appearance and personality of the FM20 manager over the template one |
 | `historial` | career history of every player, league history of every club, winners of every competition (honours, with the venue of each final) and yearly awards |
+| `vivas` | statistics of the season in progress (player_stats.dat): the FM20 record of each converted player over the one of his FM24 host |
 | `carreras` | career history and injury history of every player (separate process: a long template does not fit in memory with the rest) |
 | `temporada` | results of the last finished season (for example the last Champions League final), which the database keeps until the next season starts, and the milestones of every player (records, debuts, transfers, team of the week and other awards) |
 

@@ -211,3 +211,25 @@ The squad list of a club team is `[n u16][n x pid+1]` at 46 bytes from the recor
 `[u32 manager pid+1 or ff ff ff ff][byte][u32]`. A national team keeps it after `[byte][ff ff ff ff]`, 95 to 115
 bytes from the start. An empty list (n = 0) is still the list: the record has later id lists that are not the squad.
 Writing a list into a wrong match (first header match, or the first non-empty id list) makes the save fail to load.
+
+## Common name
+
+The name record keeps a third id, the name the game shows (header, squad lists). FM20 writes there the first name id
+when the shown name is the first name (Brazilian "Marcos") and the surname id when it is the surname; FM24 reads
+the field in the common name table, where the first name id is another name (Marcos showed as "Shen Guowei"). The
+converter looks the text up in the FM24 common name table (exact spelling) and adds it at the end of the table when
+it is missing (count before the table, entries `[id][length][utf8]`, as the first name and surname tables).
+
+## Career history order
+
+player_stats_hist lists are in the order of the moves, not sorted by season: a loan club row of the next season
+(0 appearances) comes before the return to the parent club, and the "info" column of a row (fee, "loan") is the
+fee field of the row before it. The FM20 order is kept.
+
+## Season in progress (player_stats.dat)
+
+One record per player: `[01][pid+1][club u32][14 bytes]` then blocks `[01 01]` + 81 bytes in FM20, `[01 06]` +
+137 bytes in FM24: friendlies, league, cup, continental, international, club total, then other totals; the record
+goes on with variable data (form, match ratings). The first 67 bytes of a block have the same layout in both
+versions (rating sum x10, minutes, starts, substitute appearances, appearances, goals, assists, ...). The game shows
+this record as the row of the current season in the career history, so it must not also be a history row.

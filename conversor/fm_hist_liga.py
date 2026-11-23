@@ -33,7 +33,23 @@ def mapa_comps(b20, b24, m, hasta=2018):
 def gamedb(save):
     fd, p = tempfile.mkstemp(); os.write(fd, save); os.close(fd)
     f = open(p, 'rb'); return mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ), p
-PARTE = os.environ.get('HISTORIAL_PARTE', 'todo')   # todo | liga (all but the players) | jugadores (players only)
+PARTE = os.environ.get('HISTORIAL_PARTE', 'todo')   # todo | liga (all but the players) | vivas (season in progress) | jugadores (players only)
+def main_vivas(src20, entrada, salida):
+    """season in progress (player_stats.dat) of the converted players, a step of its own (memory); the FM20 players
+    done are left in vivos.pkl for the career history step"""
+    import fm_hist_jugadores as HJ, pickle
+    W = os.environ.get('TRABAJO', 'trabajo')
+    s20 = fmsave.Save(src20); E = C.Contenedor(entrada); mp = pickle.load(open(W + '/hist_mapas.pkl', 'rb'))
+    pares = []
+    for tok in open(W + '/pares.txt').read().split():
+        v = tok.split(':'); pares.append((int(v[0]), int(v[1])))
+    inv = {}
+    for t, u in sorted(mp['tu24'].items()): inv.setdefault(u, t)
+    ps24, vivos, ev = HJ.vivas(s20.read('player_stats.dat', 'rgman'), E.read('player_stats.dat', 'rgman'), pares,
+                               lambda t: inv.get(mp['tu20'].get(t), 0xffffffff))
+    print('temporada en curso (player_stats): ' + ' | '.join('%s %d' % kv for kv in ev.items()))
+    E.escribir(salida, {('rgman', 'player_stats.dat'): ps24})
+    pickle.dump(vivos, open(W + '/vivos.pkl', 'wb'))
 def main_jugadores(src20, plantilla, entrada, salida, desp):
     """player career history and injuries only (a long template does not fit in memory with everything else):
     uses the maps left by the 'liga' part in hist_mapas.pkl"""
@@ -41,9 +57,11 @@ def main_jugadores(src20, plantilla, entrada, salida, desp):
     W = os.environ.get('TRABAJO', 'trabajo')
     s20 = fmsave.Save(src20); E = C.Contenedor(entrada); nuevos = {}
     hj = json.load(open(W + '/historial_jugadores.json')); mp = pickle.load(open(W + '/hist_mapas.pkl', 'rb'))
+    ps20 = s20.read('player_stats.dat', 'rgman')
+    vivos = pickle.load(open(W + '/vivos.pkl', 'rb')) if os.path.exists(W + '/vivos.pkl') else set()
     nl, nd, eh = HJ.transferir(s20.read('player_stats_hist_ls.dat', 'rgman'), s20.read('player_stats_hist_dt.cmt'),
                                E.read('player_stats_hist_ls.dat', 'rgman'), E.read('player_stats_hist_dt.cmt'),
-                               hj['listas'], mp['tu20'], mp['tu24'], mp['cm'], desp, ps20=s20.read('player_stats.dat', 'rgman'))
+                               hj['listas'], mp['tu20'], mp['tu24'], mp['cm'], desp, ps20=ps20, vivos=vivos)
     nuevos[('rgman', 'player_stats_hist_ls.dat')] = nl; nuevos[('', 'player_stats_hist_dt.cmt')] = nd
     print('historial de jugadores: ' + ' | '.join('%s %d' % kv for kv in eh.items()))
     if hj.get('lesiones'):
@@ -82,6 +100,7 @@ def main_jugadores(src20, plantilla, entrada, salida, desp):
     return {}
 def main(src20, plantilla, entrada, salida, desp):
     if PARTE == 'jugadores': return main_jugadores(src20, plantilla, entrada, salida, desp)
+    if PARTE == 'vivas': return main_vivas(src20, entrada, salida) or {}
     s20 = fmsave.Save(src20)
     ls20 = s20.read('tc_league_history_ls.dat'); dt20 = s20.read('tc_league_history_dt.cmt')
     b20 = H.leer(ls20, dt20)[0]
